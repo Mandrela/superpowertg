@@ -37,25 +37,23 @@ import android.graphics.PorterDuff;
 import android.graphics.PorterDuffXfermode;
 import android.graphics.Rect;
 import android.graphics.Shader;
-import android.graphics.Xfermode;
 import android.graphics.drawable.BitmapDrawable;
 import android.media.AudioAttributes;
 import android.media.AudioManager;
 import android.media.SoundPool;
 import android.net.Uri;
 import android.os.Build;
-import android.os.Looper;
+import android.os.Bundle;
 import android.os.PowerManager;
 import android.os.SystemClock;
 import android.provider.Settings;
 import android.text.TextPaint;
 import android.text.TextUtils;
+import android.util.Log;
 import android.util.Pair;
 import android.util.SparseArray;
 import android.util.SparseBooleanArray;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.collection.LongSparseArray;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
@@ -82,6 +80,7 @@ import org.telegram.ui.Stories.recorder.StoryEntry;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.Collections;
@@ -92,7 +91,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.TreeSet;
+import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.Consumer;
 
@@ -100,6 +99,7 @@ public class NotificationsController extends BaseController {
 
     public static final String EXTRA_VOICE_REPLY = "extra_voice_reply";
     public static String OTHER_NOTIFICATIONS_CHANNEL = null;
+    private static final boolean NOTIFY_AGAIN_WHEN_DISMISSED = true;
 
     private static final DispatchQueue notificationsQueue = new DispatchQueue("notificationsQueue");
     private final ArrayList<MessageObject> pushMessages = new ArrayList<>();
@@ -4132,6 +4132,11 @@ public class NotificationsController extends BaseController {
             intent.putExtra("currentAccount", currentAccount);
             PendingIntent contentIntent = PendingIntent.getActivity(ApplicationLoader.applicationContext, 0, intent, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_ONE_SHOT);
 
+            Bundle bun = new Bundle();
+            if (!Objects.equals(name, LocaleController.getString("AppName", R.string.AppName))) {
+                bun.putLong("dialog_id", dialog_id);
+            }
+
             mBuilder.setContentTitle(name)
                     .setSmallIcon(R.drawable.notification)
                     .setAutoCancel(true)
@@ -4141,7 +4146,8 @@ public class NotificationsController extends BaseController {
                     .setGroupSummary(true)
                     .setShowWhen(true)
                     .setWhen(((long) lastMessageObject.messageOwner.date) * 1000)
-                    .setColor(0xff11acfa);
+                    .setColor(0xff11acfa)
+                    .addExtras(bun);
 
             long[] vibrationPattern = null;
             Uri sound = null;
@@ -4217,7 +4223,22 @@ public class NotificationsController extends BaseController {
                 }
             }
 
-            if (silent != 1 && !notifyDisabled) {
+            boolean muteRepeated;
+
+            if (NOTIFY_AGAIN_WHEN_DISMISSED && Build.VERSION.SDK_INT >= 23) {
+                NotificationManager notificationManagerNotCompat = (NotificationManager) ApplicationLoader.applicationContext.getSystemService(Context.NOTIFICATION_SERVICE);
+                muteRepeated = Arrays.stream(notificationManagerNotCompat.getActiveNotifications()).anyMatch(notification -> notification.getNotification().extras.getLong("dialog_id") == dialog_id);
+            } else {
+                muteRepeated = pushMessages.stream().filter(messageObject -> messageObject.messageOwner.dialog_id == dialog_id).count() > 1;
+            }
+
+            if (muteRepeated) {
+                Log.d(this.getClass().getSimpleName(), "Muting message, it's from the same chat");
+            } else {
+                Log.d(this.getClass().getSimpleName(), "Let it go, it's from a new chat");
+            }
+
+            if (silent != 1 && !notifyDisabled && !muteRepeated) {
                 if (!isInApp || preferences.getBoolean("EnableInAppPreview", true) && lastMessage != null) {
                     if (lastMessage.length() > 100) {
                         lastMessage = lastMessage.substring(0, 100).replace('\n', ' ').trim() + "...";
@@ -5029,6 +5050,9 @@ public class NotificationsController extends BaseController {
                 date = ((long) messageObjects.get(0).messageOwner.date) * 1000;
             }
 
+            Bundle bun = new Bundle();
+            bun.putLong("dialog_id", dialogId);
+
             NotificationCompat.Builder builder = new NotificationCompat.Builder(ApplicationLoader.applicationContext)
                     .setContentTitle(name)
                     .setSmallIcon(R.drawable.notification)
@@ -5043,7 +5067,8 @@ public class NotificationsController extends BaseController {
                     .setContentIntent(contentIntent)
                     .extend(wearableExtender)
                     .setSortKey(String.valueOf(Long.MAX_VALUE - date))
-                    .setCategory(NotificationCompat.CATEGORY_MESSAGE);
+                    .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+                    .addExtras(bun);
 
             try {
                 Intent dismissIntent = new Intent(ApplicationLoader.applicationContext, NotificationDismissReceiver.class);
