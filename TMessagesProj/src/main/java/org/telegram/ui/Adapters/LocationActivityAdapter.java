@@ -37,6 +37,7 @@ import org.telegram.ui.Components.ChatAttachAlertLocationLayout;
 import org.telegram.ui.Components.CombinedDrawable;
 import org.telegram.ui.Components.FlickerLoadingView;
 import org.telegram.ui.Components.RecyclerListView;
+import org.telegram.ui.Components.SharedMediaLayout;
 import org.telegram.ui.LocationActivity;
 
 import java.util.ArrayList;
@@ -52,6 +53,7 @@ public class LocationActivityAdapter extends BaseLocationAdapter implements Loca
     private SendLocationCell sendLocationCell;
     private Location gpsLocation;
     private Location customLocation;
+    private String overrideAddressName;
     private String addressName;
     private Location previousFetchedLocation;
     private int locationType;
@@ -69,14 +71,36 @@ public class LocationActivityAdapter extends BaseLocationAdapter implements Loca
     public boolean animated = true;
     public TLRPC.TL_messageMediaVenue city, street;
 
-    public LocationActivityAdapter(Context context, int type, long did, boolean emptyView, Theme.ResourcesProvider resourcesProvider, boolean stories) {
-        super(stories);
+    public void setAddressNameOverride(String address) {
+        overrideAddressName = address;
+        updateCell();
+    }
 
+    private boolean fromStories;
+
+    public LocationActivityAdapter(Context context, int type, long did, boolean emptyView, Theme.ResourcesProvider resourcesProvider, boolean stories, boolean fromStories, boolean biz) {
+        super(stories, biz);
+        this.fromStories = fromStories;
         mContext = context;
         locationType = type;
         dialogId = did;
         needEmptyView = emptyView;
         this.resourcesProvider = resourcesProvider;
+    }
+
+    private SharedMediaLayout sharedMediaLayout;
+    private boolean sharedMediaLayoutVisible;
+    public void setSharedMediaLayout(SharedMediaLayout layout) {
+        this.sharedMediaLayout = layout;
+    }
+
+    public boolean setSharedMediaLayoutVisible(boolean sharedMediaLayoutVisible) {
+        if (this.sharedMediaLayoutVisible != sharedMediaLayoutVisible) {
+            this.sharedMediaLayoutVisible = sharedMediaLayoutVisible;
+            notifyDataSetChanged();
+            return true;
+        }
+        return false;
     }
 
     private boolean myLocationDenied = false;
@@ -171,9 +195,24 @@ public class LocationActivityAdapter extends BaseLocationAdapter implements Loca
 
     private void updateCell() {
         if (sendLocationCell != null) {
-            if (locationType == LocationActivity.LOCATION_TYPE_GROUP || customLocation != null) {
+            if (locationType == ChatAttachAlertLocationLayout.LOCATION_TYPE_BIZ) {
                 String address = "";
-                if (!TextUtils.isEmpty(addressName)) {
+                if (!TextUtils.isEmpty(overrideAddressName)) {
+                    address = overrideAddressName;
+                } else if (!TextUtils.isEmpty(addressName)) {
+                    address = addressName;
+                } else if (fetchingLocation) {
+                    address = LocaleController.getString("Loading", R.string.Loading);
+                } else {
+                    address = LocaleController.getString(R.string.UnknownLocation);
+                }
+                sendLocationCell.setText(LocaleController.getString(R.string.SetThisLocation), address);
+                sendLocationCell.setHasLocation(true);
+            } else if (locationType == LocationActivity.LOCATION_TYPE_GROUP || customLocation != null) {
+                String address = "";
+                if (!TextUtils.isEmpty(overrideAddressName)) {
+                    address = overrideAddressName;
+                } else if (!TextUtils.isEmpty(addressName)) {
                     address = addressName;
                 } else if (customLocation == null && gpsLocation == null || fetchingLocation) {
                     address = LocaleController.getString("Loading", R.string.Loading);
@@ -192,7 +231,7 @@ public class LocationActivityAdapter extends BaseLocationAdapter implements Loca
                 sendLocationCell.setHasLocation(true);
             } else {
                 if (gpsLocation != null) {
-                    sendLocationCell.setText(LocaleController.getString("SendLocation", R.string.SendLocation), LocaleController.formatString("AccurateTo", R.string.AccurateTo, LocaleController.formatPluralString("Meters", (int) gpsLocation.getAccuracy())));
+                    sendLocationCell.setText(LocaleController.getString(R.string.SendLocation), LocaleController.formatString(R.string.AccurateTo, LocaleController.formatPluralString("Meters", (int) gpsLocation.getAccuracy())));
                     sendLocationCell.setHasLocation(true);
                 } else {
                     sendLocationCell.setText(LocaleController.getString("SendLocation", R.string.SendLocation), myLocationDenied ? "" : LocaleController.getString("Loading", R.string.Loading));
@@ -202,7 +241,7 @@ public class LocationActivityAdapter extends BaseLocationAdapter implements Loca
         }
     }
 
-    private String getAddressName() {
+    public String getAddressName() {
         return addressName;
     }
 
@@ -210,9 +249,13 @@ public class LocationActivityAdapter extends BaseLocationAdapter implements Loca
     public void onLocationAddressAvailable(String address, String displayAddress, TLRPC.TL_messageMediaVenue city, TLRPC.TL_messageMediaVenue street, Location location) {
         fetchingLocation = false;
         previousFetchedLocation = location;
-        addressName = address;
+        if (locationType == ChatAttachAlertLocationLayout.LOCATION_TYPE_BIZ) {
+            addressName = displayAddress;
+        } else {
+            addressName = address;
+        }
 
-        if (locationType == ChatAttachAlertLocationLayout.LOCATION_TYPE_STORY && askingForMyLocation) {
+        if ((locationType == ChatAttachAlertLocationLayout.LOCATION_TYPE_STORY) && askingForMyLocation) {
             this.city = null;
             this.street = null;
         }
@@ -241,7 +284,19 @@ public class LocationActivityAdapter extends BaseLocationAdapter implements Loca
     }
 
     public void fetchLocationAddress() {
-        if (locationType == LocationActivity.LOCATION_TYPE_GROUP) {
+        if (locationType == ChatAttachAlertLocationLayout.LOCATION_TYPE_BIZ) {
+            Location location;
+            if (customLocation != null) {
+                location = customLocation;
+            } else if (gpsLocation != null) {
+                location = gpsLocation;
+            } else {
+                return;
+            }
+            fetchingLocation = true;
+            updateCell();
+            LocationController.fetchLocationAddress(location, biz ? LocationController.TYPE_BIZ : 0, this);
+        } else if (locationType == LocationActivity.LOCATION_TYPE_GROUP) {
             Location location;
             if (customLocation != null) {
                 location = customLocation;
@@ -268,40 +323,49 @@ public class LocationActivityAdapter extends BaseLocationAdapter implements Loca
             }
             fetchingLocation = true;
             updateCell();
-            LocationController.fetchLocationAddress(location, this);
+            LocationController.fetchLocationAddress(location, stories ? LocationController.TYPE_STORY : 0, this);
         }
     }
 
     @Override
     public int getItemCount() {
+        int count;
         if (locationType == LocationActivity.LOCATION_TYPE_LIVE_VIEW) {
-            return 2;
+            count = 2;
         } else if (locationType == LocationActivity.LOCATION_TYPE_GROUP_VIEW) {
-            return 2;
+            count = 2;
         } else if (locationType == LocationActivity.LOCATION_TYPE_GROUP) {
-            return 2;
+            count = 2;
+        } else if (biz) {
+            count = 2;
         } else if (currentMessageObject != null) {
-            return 2 + (currentLiveLocations.isEmpty() ? 1 : currentLiveLocations.size() + 3);
-        } else if (locationType == 2) {
-            return 2 + currentLiveLocations.size();
+            count = 2 + (currentLiveLocations.isEmpty() ? (fromStories ? 0 : 1) : currentLiveLocations.size() + 3);
+        } else if (locationType == LocationActivity.LOCATION_TYPE_LIVE) {
+            LocationController.SharingLocationInfo currentInfo = LocationController.getInstance(currentAccount).getSharingLocationInfo(dialogId);
+            count = 2 + currentLiveLocations.size() + (currentInfo != null && currentInfo.period != 0x7FFFFFFF ? 1 : 0);
         } else {
             if (searching || !searched || places.isEmpty()) {
-                int count = 6;
+                count = 6;
                 if (locationType == LocationActivity.LOCATION_TYPE_SEND) {
                     count = 5;
                 } else if (locationType == ChatAttachAlertLocationLayout.LOCATION_TYPE_STORY) {
                     count = 5 + (this.street != null ? 1 : 0);
                 }
-                return count + (!myLocationDenied && (searching || !searched) ? 2 : 0) + (needEmptyView ? 1 : 0) - (myLocationDenied ? 2 : 0);
+                count += (!myLocationDenied && (searching || !searched) ? 2 : 0) + (needEmptyView ? 1 : 0) - (myLocationDenied ? 2 : 0);
+            } else {
+                count = 5;
+                if (locationType == LocationActivity.LOCATION_TYPE_SEND_WITH_LIVE) {
+                    count = 6;
+                } else if (locationType == ChatAttachAlertLocationLayout.LOCATION_TYPE_STORY) {
+                    count = 5;// + (this.street != null ? 1 : 0);
+                }
+                count += locations.size() + places.size() + (needEmptyView ? 1 : 0);
             }
-            int count = 5;
-            if (locationType == LocationActivity.LOCATION_TYPE_SEND_WITH_LIVE) {
-                count = 6;
-            } else if (locationType == ChatAttachAlertLocationLayout.LOCATION_TYPE_STORY) {
-                count = 5;// + (this.street != null ? 1 : 0);
-            }
-            return count + locations.size() + places.size() + (needEmptyView ? 1 : 0);
         }
+        if (sharedMediaLayout != null && sharedMediaLayoutVisible) {
+            count++;
+        }
+        return count;
     }
 
     private FrameLayout emptyCell;
@@ -329,7 +393,7 @@ public class LocationActivityAdapter extends BaseLocationAdapter implements Loca
                 emptyCell.setLayoutParams(new RecyclerView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, overScrollHeight));
                 break;
             case VIEW_TYPE_SEND_LOCATION:
-                view = new SendLocationCell(mContext, false, resourcesProvider);
+                view = new SendLocationCell(mContext, false, false, resourcesProvider);
                 break;
             case VIEW_TYPE_HEADER:
                 view = new HeaderCell(mContext, resourcesProvider);
@@ -345,13 +409,19 @@ public class LocationActivityAdapter extends BaseLocationAdapter implements Loca
                 view = new LocationPoweredCell(mContext, resourcesProvider);
                 break;
             case VIEW_TYPE_LIVE_LOCATION: {
-                SendLocationCell cell = new SendLocationCell(mContext, true, resourcesProvider);
+                SendLocationCell cell = new SendLocationCell(mContext, true, false, resourcesProvider);
+                cell.setDialogId(dialogId);
+                view = cell;
+                break;
+            }
+            case VIEW_TYPE_DELETE_LIVE_LOCATION: {
+                SendLocationCell cell = new SendLocationCell(mContext, true, true, resourcesProvider);
                 cell.setDialogId(dialogId);
                 view = cell;
                 break;
             }
             case VIEW_TYPE_SHARING:
-                view = new SharingLiveLocationCell(mContext, true, locationType == LocationActivity.LOCATION_TYPE_GROUP || locationType == LocationActivity.LOCATION_TYPE_GROUP_VIEW ? 16 : 54, resourcesProvider);
+                view = new SharingLiveLocationCell(mContext, true, locationType == LocationActivity.LOCATION_TYPE_GROUP || locationType == LocationActivity.LOCATION_TYPE_GROUP_VIEW || locationType == 3 ? 16 : 54, resourcesProvider);
                 break;
             case VIEW_TYPE_DIRECTION: {
                 LocationDirectionCell cell = new LocationDirectionCell(mContext, resourcesProvider);
@@ -373,6 +443,9 @@ public class LocationActivityAdapter extends BaseLocationAdapter implements Loca
                 view = locationCell2;
                 break;
             }
+            case VIEW_TYPE_SHARED_STORIES:
+                view = sharedMediaLayout;
+                break;
             case VIEW_TYPE_EMPTY:
             default: {
                 view = new View(mContext);
@@ -389,11 +462,13 @@ public class LocationActivityAdapter extends BaseLocationAdapter implements Loca
     public static final int VIEW_TYPE_LOADING = 4;
     public static final int VIEW_TYPE_FOOTER = 5;
     public static final int VIEW_TYPE_LIVE_LOCATION = 6;
-    public static final int VIEW_TYPE_SHARING = 7;
-    public static final int VIEW_TYPE_DIRECTION = 8;
-    public static final int VIEW_TYPE_SHADOW = 9;
-    public static final int VIEW_TYPE_EMPTY = 10;
-    public static final int VIEW_TYPE_STORY_LOCATION = 11;
+    public static final int VIEW_TYPE_DELETE_LIVE_LOCATION = 7;
+    public static final int VIEW_TYPE_SHARING = 8;
+    public static final int VIEW_TYPE_DIRECTION = 9;
+    public static final int VIEW_TYPE_SHADOW = 10;
+    public static final int VIEW_TYPE_EMPTY = 11;
+    public static final int VIEW_TYPE_STORY_LOCATION = 12;
+    public static final int VIEW_TYPE_SHARED_STORIES = 13;
 
     @Override
     public void onBindViewHolder(RecyclerView.ViewHolder holder, int position) {
@@ -425,7 +500,7 @@ public class LocationActivityAdapter extends BaseLocationAdapter implements Loca
 
                 if (locationType == 0) {
                     position -= 4;
-                } else if (locationType == ChatAttachAlertLocationLayout.LOCATION_TYPE_STORY) {
+                } else if (locationType == ChatAttachAlertLocationLayout.LOCATION_TYPE_STORY || locationType == ChatAttachAlertLocationLayout.LOCATION_TYPE_BIZ) {
                     position -= 4;
                     if (this.street != null) {
                         position--;
@@ -454,6 +529,12 @@ public class LocationActivityAdapter extends BaseLocationAdapter implements Loca
                 ((LocationLoadingCell) holder.itemView).setLoading(searching);
                 break;
             case VIEW_TYPE_LIVE_LOCATION:
+                SendLocationCell cell2 = (SendLocationCell) holder.itemView;
+                cell2.setHasLocation(gpsLocation != null);
+                cell2.useDivider = position + 1 < getItemCount() && getItemViewType(position + 1) == VIEW_TYPE_DELETE_LIVE_LOCATION;
+                cell2.invalidate();
+                break;
+            case VIEW_TYPE_DELETE_LIVE_LOCATION:
                 ((SendLocationCell) holder.itemView).setHasLocation(gpsLocation != null);
                 break;
             case VIEW_TYPE_SHARING:
@@ -465,7 +546,14 @@ public class LocationActivityAdapter extends BaseLocationAdapter implements Loca
                 } else if (currentMessageObject != null && position == 1) {
                     locationCell.setDialog(currentMessageObject, gpsLocation, myLocationDenied);
                 } else {
-                    locationCell.setDialog(currentLiveLocations.get(position - (currentMessageObject != null ? 5 : 2)), gpsLocation);
+                    int index = position - (currentMessageObject != null ? 5 : 2);
+                    LocationController.SharingLocationInfo currentInfo = LocationController.getInstance(currentAccount).getSharingLocationInfo(dialogId);
+                    if (currentInfo != null && currentInfo.period != 0x7FFFFFFF) {
+                        index--;
+                    }
+                    if (index < 0 || index >= currentLiveLocations.size())
+                        return;
+                    locationCell.setDialog(currentLiveLocations.get(index), gpsLocation);
                 }
                 break;
             case VIEW_TYPE_EMPTY:
@@ -510,9 +598,14 @@ public class LocationActivityAdapter extends BaseLocationAdapter implements Loca
             } else if (i > 4 && i < places.size() + 4) {
                 return currentLiveLocations.get(i - 5);
             }
-        } else if (locationType == 2) {
-            if (i >= 2) {
-                return currentLiveLocations.get(i - 2);
+        } else if (locationType == LocationActivity.LOCATION_TYPE_LIVE) {
+            int start = 2;
+            LocationController.SharingLocationInfo currentInfo = LocationController.getInstance(currentAccount).getSharingLocationInfo(dialogId);
+            if (currentInfo != null && currentInfo.period != 0x7FFFFFFF) {
+                start++;
+            }
+            if (i >= start) {
+                return currentLiveLocations.get(i - start);
             }
             return null;
         } else if (locationType == LocationActivity.LOCATION_TYPE_SEND_WITH_LIVE) {
@@ -538,6 +631,9 @@ public class LocationActivityAdapter extends BaseLocationAdapter implements Loca
 
     @Override
     public int getItemViewType(int position) {
+        if (position == getItemCount() - 1 && sharedMediaLayout != null && sharedMediaLayoutVisible) {
+            return VIEW_TYPE_SHARED_STORIES;
+        }
         if (position == 0) {
             return VIEW_TYPE_PADDING;
         }
@@ -552,6 +648,10 @@ public class LocationActivityAdapter extends BaseLocationAdapter implements Loca
         }
         if (locationType == LocationActivity.LOCATION_TYPE_GROUP) {
             return VIEW_TYPE_SEND_LOCATION;
+        }
+        LocationController.SharingLocationInfo currentInfo = null;
+        if (locationType == LocationActivity.LOCATION_TYPE_LIVE || locationType == LocationActivity.LOCATION_TYPE_SEND_WITH_LIVE) {
+            currentInfo = LocationController.getInstance(currentAccount).getSharingLocationInfo(dialogId);
         }
         if (currentMessageObject != null) {
             if (currentLiveLocations.isEmpty()) {
@@ -570,8 +670,14 @@ public class LocationActivityAdapter extends BaseLocationAdapter implements Loca
             }
             return VIEW_TYPE_SHARING;
         }
-        if (locationType == 2) {
+        if (locationType == LocationActivity.LOCATION_TYPE_LIVE) {
+            if (position == 2 && currentInfo != null && currentInfo.period != 0x7FFFFFFF) {
+                return VIEW_TYPE_DELETE_LIVE_LOCATION;
+            }
             if (position == 1) {
+                if (currentInfo != null && currentInfo.period == 0x7FFFFFFF) {
+                    return VIEW_TYPE_DELETE_LIVE_LOCATION;
+                }
                 shareLiveLocationPotistion = position;
                 return VIEW_TYPE_LIVE_LOCATION;
             } else {
@@ -581,9 +687,14 @@ public class LocationActivityAdapter extends BaseLocationAdapter implements Loca
         if (locationType == LocationActivity.LOCATION_TYPE_SEND_WITH_LIVE) {
             if (position == 1) {
                 return VIEW_TYPE_SEND_LOCATION;
-            } else if (position == 2) {
-                shareLiveLocationPotistion = position;
-                return VIEW_TYPE_LIVE_LOCATION;
+            } else if (position == LocationActivity.LOCATION_TYPE_LIVE) {
+                if (currentInfo != null) {
+                    shareLiveLocationPotistion = -1;
+                    return VIEW_TYPE_DELETE_LIVE_LOCATION;
+                } else {
+                    shareLiveLocationPotistion = position;
+                    return VIEW_TYPE_LIVE_LOCATION;
+                }
             } else if (position == 3) {
                 return VIEW_TYPE_SHADOW;
             } else if (position == 4) {
@@ -603,7 +714,7 @@ public class LocationActivityAdapter extends BaseLocationAdapter implements Loca
                     return VIEW_TYPE_STORY_LOCATION;
                 }
                 if (this.street != null) {
-                    if (position == 2) {
+                    if (position == LocationActivity.LOCATION_TYPE_LIVE) {
                         return VIEW_TYPE_STORY_LOCATION;
                     }
                     position--;
@@ -633,7 +744,7 @@ public class LocationActivityAdapter extends BaseLocationAdapter implements Loca
         if (viewType == VIEW_TYPE_LIVE_LOCATION) {
             return !(LocationController.getInstance(currentAccount).getSharingLocationInfo(dialogId) == null && gpsLocation == null);
         }
-        return viewType == VIEW_TYPE_SEND_LOCATION || viewType == VIEW_TYPE_LOCATION || viewType == VIEW_TYPE_SHARING || viewType == VIEW_TYPE_STORY_LOCATION;
+        return viewType == VIEW_TYPE_SEND_LOCATION || viewType == VIEW_TYPE_LOCATION || viewType == VIEW_TYPE_SHARING || viewType == VIEW_TYPE_STORY_LOCATION || viewType == VIEW_TYPE_DELETE_LIVE_LOCATION;
     }
 
     private int getThemedColor(int key) {

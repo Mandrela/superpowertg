@@ -236,8 +236,9 @@ public abstract class PrivateVideoPreviewDialogNew extends FrameLayout implement
         positiveButton.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
         positiveButton.setTextColor(Theme.getColor(Theme.key_voipgroup_nameText));
         positiveButton.setGravity(Gravity.CENTER);
-        positiveButton.setTypeface(AndroidUtilities.getTypeface(AndroidUtilities.TYPEFACE_ROBOTO_MEDIUM));
+        positiveButton.setTypeface(AndroidUtilities.bold());
         positiveButton.getPaint().setTextAlign(Paint.Align.CENTER);
+        positiveButton.setContentDescription(LocaleController.getString("VoipShareVideo", R.string.VoipShareVideo));
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             positiveButton.setForeground(Theme.createSimpleSelectorRoundRectDrawable(AndroidUtilities.dp(8), Color.TRANSPARENT, ColorUtils.setAlphaComponent(Theme.getColor(Theme.key_voipgroup_nameText), (int) (255 * 0.3f))));
@@ -302,6 +303,7 @@ public abstract class PrivateVideoPreviewDialogNew extends FrameLayout implement
                 text = LocaleController.getString("VoipBackCamera", R.string.VoipBackCamera);
             }
             titles[i] = new VoIpBitmapTextView(context, text);
+            titles[i].setContentDescription(text);
             titles[i].setPadding(AndroidUtilities.dp(16), 0, AndroidUtilities.dp(10), 0);
             titlesLayout.addView(titles[i], LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.MATCH_PARENT));
             final int num = i;
@@ -500,7 +502,7 @@ public abstract class PrivateVideoPreviewDialogNew extends FrameLayout implement
             textView.setLineSpacing(AndroidUtilities.dp(2), 1.0f);
             textView.setTextColor(0xffffffff);
             textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 15);
-            textView.setTypeface(AndroidUtilities.getTypeface(AndroidUtilities.TYPEFACE_ROBOTO_MEDIUM));
+            textView.setTypeface(AndroidUtilities.bold());
             frameLayout.addView(textView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER, 21, 28, 21, 0));
             frameLayout.setTag("screencast_stub");
             frameLayout.setVisibility(GONE);

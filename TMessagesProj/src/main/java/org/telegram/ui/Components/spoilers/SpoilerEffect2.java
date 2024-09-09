@@ -33,6 +33,7 @@ import org.telegram.ui.Components.RLottieDrawable;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
 import javax.microedition.khronos.egl.EGL10;
@@ -47,25 +48,41 @@ public class SpoilerEffect2 {
     private final double MIN_DELTA;
     private final double MAX_DELTA;
 
+    public static final int TYPE_DEFAULT = 0;
+    public static final int TYPE_PREVIEW = 1;
+
+    public final int type;
+
     public static boolean supports() {
         return Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP;
     }
 
-    private static SpoilerEffect2 instance;
+    private static HashMap<Integer, SpoilerEffect2> instance;
     public static SpoilerEffect2 getInstance(View view) {
+        return getInstance(TYPE_DEFAULT, view);
+    }
+
+    public static SpoilerEffect2 getInstance(int type, View view) {
+        return getInstance(type, view, getRootView(view));
+    }
+
+    public static SpoilerEffect2 getInstance(int type, View view, ViewGroup rootView) {
         if (view == null || !supports()) {
             return null;
         }
         if (instance == null) {
+            instance = new HashMap<>();
+        }
+        SpoilerEffect2 e = instance.get(type);
+        if (e == null) {
             final int sz = getSize();
-            ViewGroup rootView = getRootView(view);
             if (rootView == null) {
                 return null;
             }
-            instance = new SpoilerEffect2(makeTextureViewContainer(rootView), sz, sz);
+            instance.put(type, e = new SpoilerEffect2(type, makeTextureViewContainer(rootView), sz, sz));
         }
-        instance.attach(view);
-        return instance;
+        e.attach(view);
+        return e;
     }
 
     private static ViewGroup getRootView(View view) {
@@ -81,8 +98,16 @@ public class SpoilerEffect2 {
     }
 
     public static void pause(boolean pause) {
-        if (instance != null && instance.thread != null) {
-            instance.thread.pause(pause);
+        if (instance == null) return;
+        for (SpoilerEffect2 s : instance.values()) {
+            if (s.thread != null) s.thread.pause(pause);
+        }
+    }
+
+    public static void pause(int type, boolean pause) {
+        if (instance == null) return;
+        for (SpoilerEffect2 s : instance.values()) {
+            if (s.type == type && s.thread != null) s.thread.pause(pause);
         }
     }
 
@@ -185,10 +210,6 @@ public class SpoilerEffect2 {
         if (index == null) {
             index = 0;
         }
-        if (w > ow || h > oh) {
-            final float scale = Math.max(w / (float) ow, h / (float) oh);
-            canvas.scale(scale, scale);
-        }
         if ((index % 4) == 1) {
             canvas.rotate(180, ow / 2f, oh / 2f);
         }
@@ -198,6 +219,12 @@ public class SpoilerEffect2 {
         if ((index % 4) == 3) {
             canvas.scale(1, -1, ow / 2f, oh / 2f);
         }
+        canvas.translate(w / 2f, h / 2f);
+        if (w > ow || h > oh) {
+            final float scale = Math.max(w / (float) ow, h / (float) oh);
+            canvas.scale(scale, scale);
+        }
+        canvas.translate(-w / 2f, -h / 2f);
         if (toBitmap) {
             Bitmap bitmap = textureView.getBitmap();
             if (bitmap != null) {
@@ -227,11 +254,12 @@ public class SpoilerEffect2 {
         }
     }
 
-    private SpoilerEffect2(ViewGroup container, int width, int height) {
+    private SpoilerEffect2(int type, ViewGroup container, int width, int height) {
         MAX_FPS = (int) AndroidUtilities.screenRefreshRate;
         MIN_DELTA = 1.0 / MAX_FPS;
         MAX_DELTA = MIN_DELTA * 4;
 
+        this.type = type;
         this.width = width;
         this.height = height;
 
@@ -494,15 +522,6 @@ public class SpoilerEffect2 {
             GLES31.glUniform1f(resetHandle, reset ? 1 : 0);
             GLES31.glUniform1f(radiusHandle, radius);
             GLES31.glUniform1f(seedHandle, Utilities.fastRandom.nextInt(256) / 256f);
-
-            GLES31.glUniform1f(GLES31.glGetUniformLocation(drawProgram, "noiseScale"), 6);
-            GLES31.glUniform1f(GLES31.glGetUniformLocation(drawProgram, "noiseSpeed"), 0.6f);
-            GLES31.glUniform1f(GLES31.glGetUniformLocation(drawProgram, "noiseMovement"), 4f);
-            GLES31.glUniform1f(GLES31.glGetUniformLocation(drawProgram, "longevity"), 1.4f);
-            GLES31.glUniform1f(GLES31.glGetUniformLocation(drawProgram, "dampingMult"), .9999f);
-            GLES31.glUniform1f(GLES31.glGetUniformLocation(drawProgram, "maxVelocity"), 6.f);
-            GLES31.glUniform1f(GLES31.glGetUniformLocation(drawProgram, "velocityMult"), 1.0f);
-            GLES31.glUniform1f(GLES31.glGetUniformLocation(drawProgram, "forceMult"), 0.6f);
         }
 
         private float t;

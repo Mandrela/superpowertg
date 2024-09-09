@@ -7,6 +7,7 @@ import android.animation.AnimatorListenerAdapter;
 import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffColorFilter;
@@ -29,9 +30,11 @@ import org.telegram.ui.Components.AnimatedTextView;
 import org.telegram.ui.Components.CircularProgressDrawable;
 import org.telegram.ui.Components.CubicBezierInterpolator;
 import org.telegram.ui.Components.LayoutHelper;
+import org.telegram.ui.Components.Loadable;
+import org.telegram.ui.Components.LoadingDrawable;
 import org.telegram.ui.Components.ScaleStateListAnimator;
 
-public class ButtonWithCounterView extends FrameLayout {
+public class ButtonWithCounterView extends FrameLayout implements Loadable {
 
     private Theme.ResourcesProvider resourcesProvider;
 
@@ -41,7 +44,7 @@ public class ButtonWithCounterView extends FrameLayout {
     private final AnimatedTextView.AnimatedTextDrawable countText;
     private float countAlpha;
     private final AnimatedFloat countAlphaAnimated = new AnimatedFloat(350, CubicBezierInterpolator.EASE_OUT_QUINT);
-    private final View rippleView;
+    public final View rippleView;
     private final boolean filled;
 
     public ButtonWithCounterView(Context context, Theme.ResourcesProvider resourcesProvider) {
@@ -57,7 +60,6 @@ public class ButtonWithCounterView extends FrameLayout {
         ScaleStateListAnimator.apply(this, .02f, 1.2f);
 
         rippleView = new View(context);
-        rippleView.setBackground(Theme.createRadSelectorDrawable(Theme.getColor(Theme.key_listSelector, resourcesProvider), 8, 8));
         addView(rippleView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.MATCH_PARENT));
 
         if (filled) {
@@ -72,33 +74,49 @@ public class ButtonWithCounterView extends FrameLayout {
         text.setCallback(this);
         text.setTextSize(dp(14));
         if (filled) {
-            text.setTypeface(AndroidUtilities.getTypeface(AndroidUtilities.TYPEFACE_ROBOTO_MEDIUM));
+            text.setTypeface(AndroidUtilities.bold());
         }
-        text.setTextColor(Theme.getColor(filled ? Theme.key_featuredStickers_buttonText : Theme.key_featuredStickers_addButton, resourcesProvider));
         text.setGravity(Gravity.CENTER_HORIZONTAL);
 
-        subText = new AnimatedTextView.AnimatedTextDrawable(true, true, false);
+        subText = new AnimatedTextView.AnimatedTextDrawable(subTextSplitToWords(), true, false);
         subText.setAnimationProperties(.3f, 0, 250, CubicBezierInterpolator.EASE_OUT_QUINT);
         subText.setCallback(this);
         subText.setTextSize(dp(12));
-        subText.setTextColor(Theme.getColor(filled ? Theme.key_featuredStickers_buttonText : Theme.key_featuredStickers_addButton, resourcesProvider));
         subText.setGravity(Gravity.CENTER_HORIZONTAL);
 
         countText = new AnimatedTextView.AnimatedTextDrawable(false, false, true);
         countText.setAnimationProperties(.3f, 0, 250, CubicBezierInterpolator.EASE_OUT_QUINT);
         countText.setCallback(this);
         countText.setTextSize(dp(12));
-        countText.setTypeface(AndroidUtilities.getTypeface(AndroidUtilities.TYPEFACE_ROBOTO_MEDIUM));
-        countText.setTextColor(Theme.getColor(Theme.key_featuredStickers_addButton, resourcesProvider));
+        countText.setTypeface(AndroidUtilities.bold());
         countText.setText("");
         countText.setGravity(Gravity.CENTER_HORIZONTAL);
 
         setWillNotDraw(false);
+        updateColors();
+    }
+
+    protected boolean subTextSplitToWords() {
+        return true;
+    }
+
+    public void disableRippleView() {
+        removeView(rippleView);
+    }
+
+    public void setColor(int color) {
+        if (filled) {
+            setBackground(Theme.createRoundRectDrawable(dp(8), color));
+        }
     }
 
     public void updateColors() {
-        rippleView.setBackground(Theme.createRadSelectorDrawable(Theme.getColor(Theme.key_listSelector, resourcesProvider), 8, 8));
         text.setTextColor(Theme.getColor(filled ? Theme.key_featuredStickers_buttonText : Theme.key_featuredStickers_addButton, resourcesProvider));
+        if (filled) {
+            rippleView.setBackground(Theme.createRadSelectorDrawable(Theme.getColor(Theme.key_listSelector, resourcesProvider), 8, 8));
+        } else {
+            rippleView.setBackground(Theme.createRadSelectorDrawable(Theme.multAlpha(text.getTextColor(), .10f), 8, 8));
+        }
         subText.setTextColor(Theme.getColor(filled ? Theme.key_featuredStickers_buttonText : Theme.key_featuredStickers_addButton, resourcesProvider));
         countText.setTextColor(Theme.getColor(Theme.key_featuredStickers_addButton, resourcesProvider));
     }
@@ -106,6 +124,13 @@ public class ButtonWithCounterView extends FrameLayout {
     public void setCounterColor(int color) {
         countText.setTextColor(color);
         counterDrawable.setColorFilter(new PorterDuffColorFilter(color, PorterDuff.Mode.SRC_IN));
+    }
+
+    public void setTextColor(int color) {
+        text.setTextColor(color);
+        if (!filled) {
+            rippleView.setBackground(Theme.createRadSelectorDrawable(Theme.multAlpha(text.getTextColor(), .10f), 8, 8));
+        }
     }
 
     private boolean countFilled = true;
@@ -215,16 +240,23 @@ public class ButtonWithCounterView extends FrameLayout {
         }
     }
 
+    private LoadingDrawable flickeringLoadingDrawable;
+    private boolean flickeringLoading;
     private float loadingT = 0;
     private boolean loading;
     private ValueAnimator loadingAnimator;
     public void setLoading(boolean loading) {
         if (this.loading != loading) {
+            if (flickeringLoading) {
+                this.loading = loading;
+                invalidate();
+                return;
+            }
+
             if (loadingAnimator != null) {
                 loadingAnimator.cancel();
                 loadingAnimator = null;
             }
-
             loadingAnimator = ValueAnimator.ofFloat(loadingT, (this.loading = loading) ? 1 : 0);
             loadingAnimator.addUpdateListener(anm -> {
                 loadingT = (float) anm.getAnimatedValue();
@@ -241,6 +273,10 @@ public class ButtonWithCounterView extends FrameLayout {
             loadingAnimator.setInterpolator(CubicBezierInterpolator.EASE_OUT_QUINT);
             loadingAnimator.start();
         }
+    }
+
+    public void setFlickeringLoading(boolean flickeringLoading) {
+        this.flickeringLoading = flickeringLoading;
     }
 
     public boolean isLoading() {
@@ -330,11 +366,17 @@ public class ButtonWithCounterView extends FrameLayout {
             });
             enabledAnimator.start();
         }
+        super.setEnabled(enabled);
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return enabled;
     }
 
     @Override
     protected boolean verifyDrawable(@NonNull Drawable who) {
-        return text == who || subText == who || countText == who || super.verifyDrawable(who);
+        return flickeringLoadingDrawable == who || text == who || subText == who || countText == who || super.verifyDrawable(who);
     }
 
     @Override
@@ -354,6 +396,32 @@ public class ButtonWithCounterView extends FrameLayout {
     @Override
     protected void onDraw(Canvas canvas) {
         rippleView.draw(canvas);
+
+        if (flickeringLoading) {
+            if (loading) {
+                if (flickeringLoadingDrawable == null) {
+                    flickeringLoadingDrawable = new LoadingDrawable(resourcesProvider);
+                    flickeringLoadingDrawable.setCallback(this);
+                    flickeringLoadingDrawable.setGradientScale(2f);
+                    flickeringLoadingDrawable.setAppearByGradient(true);
+                    flickeringLoadingDrawable.strokePaint.setStrokeWidth(0);
+                    flickeringLoadingDrawable.setColors(
+                            Theme.multAlpha(Color.WHITE, 0.02f),
+                            Theme.multAlpha(Color.WHITE, 0.375f)
+                    );
+                }
+                flickeringLoadingDrawable.resetDisappear();
+                flickeringLoadingDrawable.setBounds(0, 0, getMeasuredWidth(), getMeasuredHeight());
+                flickeringLoadingDrawable.setRadiiDp(8);
+                flickeringLoadingDrawable.draw(canvas);
+            } else if (flickeringLoadingDrawable != null) {
+                flickeringLoadingDrawable.disappear();
+                flickeringLoadingDrawable.draw(canvas);
+                if (flickeringLoadingDrawable.isDisappeared()) {
+                    flickeringLoadingDrawable.reset();
+                }
+            }
+        }
 
         if (loadingT > 0) {
             if (loadingDrawable == null) {
@@ -466,5 +534,27 @@ public class ButtonWithCounterView extends FrameLayout {
 
     public void setGlobalAlpha(float v) {
         globalAlpha = ((int) (v * 255));
+    }
+
+    public boolean wrapContentDynamic;
+    public void wrapContentDynamic() {
+        wrapContentDynamic = true;
+    }
+
+    private int minWidth;
+    private boolean wrapWidth;
+
+    public void setMinWidth(int px) {
+        this.wrapWidth = true;
+        this.minWidth = px;
+    }
+
+    @Override
+    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        if (wrapWidth) {
+            super.onMeasure(MeasureSpec.makeMeasureSpec((int) Math.min(Math.max(getPaddingLeft() + text.getCurrentWidth() + getPaddingRight(), minWidth), MeasureSpec.getSize(widthMeasureSpec)), MeasureSpec.EXACTLY), heightMeasureSpec);
+        } else {
+            super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+        }
     }
 }

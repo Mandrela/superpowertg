@@ -119,7 +119,7 @@ public class ChatReactionsEditActivity extends BaseFragment implements Notificat
             enableReactionsCell.setHeight(56);
             enableReactionsCell.setTextAndCheck(LocaleController.getString("EnableReactions", R.string.EnableReactions), !chatReactions.isEmpty(), false);
             enableReactionsCell.setBackgroundColor(Theme.getColor(enableReactionsCell.isChecked() ? Theme.key_windowBackgroundChecked : Theme.key_windowBackgroundUnchecked));
-            enableReactionsCell.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
+            enableReactionsCell.setTypeface(AndroidUtilities.bold());
             enableReactionsCell.setOnClickListener(v -> {
                 setCheckedEnableReactionCell(enableReactionsCell.isChecked() ? SELECT_TYPE_NONE : SELECT_TYPE_SOME, true);
             });
@@ -199,6 +199,7 @@ public class ChatReactionsEditActivity extends BaseFragment implements Notificat
                             infoCell.setText(ChatObject.isChannelAndNotMegaGroup(currentChat) ? LocaleController.getString("EnableReactionsChannelInfo", R.string.EnableReactionsChannelInfo) :
                                     LocaleController.getString("EnableReactionsGroupInfo", R.string.EnableReactionsGroupInfo));
                         } else {
+                            infoCell.setForeground(Theme.getThemedDrawableByKey(getContext(), R.drawable.greydivider_bottom, Theme.key_windowBackgroundGrayShadow));
                             if (selectedType == SELECT_TYPE_SOME) {
                                 infoCell.setText(LocaleController.getString("EnableSomeReactionsInfo", R.string.EnableSomeReactionsInfo));
                             } else if (selectedType == SELECT_TYPE_ALL) {

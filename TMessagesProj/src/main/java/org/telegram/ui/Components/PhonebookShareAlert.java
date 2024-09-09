@@ -120,7 +120,7 @@ public class PhonebookShareAlert extends BottomSheet {
             addView(avatarImageView, LayoutHelper.createLinear(80, 80, Gravity.TOP | Gravity.CENTER_HORIZONTAL, 0, 32, 0, 0));
 
             TextView textView = new TextView(context);
-            textView.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
+            textView.setTypeface(AndroidUtilities.bold());
             textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 17);
             textView.setTextColor(getThemedColor(Theme.key_dialogTextBlack));
             textView.setSingleLine(true);
@@ -257,7 +257,7 @@ public class PhonebookShareAlert extends BottomSheet {
         String name = ContactsController.formatName(firstName, lastName);
         ArrayList<TLRPC.User> result = null;
         ArrayList<AndroidUtilities.VcardItem> items = new ArrayList<>();
-        ArrayList<TLRPC.TL_restrictionReason> vcard = null;
+        ArrayList<TLRPC.RestrictionReason> vcard = null;
         if (uri != null) {
             result = AndroidUtilities.loadVCardFromStream(uri, currentAccount, false, items, name);
         } else if (file != null) {
@@ -637,9 +637,9 @@ public class PhonebookShareAlert extends BottomSheet {
         } else {
             buttonTextView.setText(LocaleController.getString("ShareContactTitle", R.string.ShareContactTitle));
         }
-        buttonTextView.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
-        buttonTextView.setBackground(Theme.createSimpleSelectorRoundRectDrawable(AndroidUtilities.dp(4), getThemedColor(Theme.key_featuredStickers_addButton), getThemedColor(Theme.key_featuredStickers_addButtonPressed)));
-        frameLayout.addView(buttonTextView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 42, Gravity.LEFT | Gravity.BOTTOM, 16, 16, 16, 16));
+        buttonTextView.setTypeface(AndroidUtilities.bold());
+        buttonTextView.setBackground(Theme.createSimpleSelectorRoundRectDrawable(AndroidUtilities.dp(8), getThemedColor(Theme.key_featuredStickers_addButton), getThemedColor(Theme.key_featuredStickers_addButtonPressed)));
+        frameLayout.addView(buttonTextView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 48, Gravity.LEFT | Gravity.BOTTOM, 14, 14, 14, 14));
         buttonTextView.setOnClickListener(v -> {
             if (isImport) {
                 AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
@@ -920,7 +920,7 @@ public class PhonebookShareAlert extends BottomSheet {
                         }
                     }
                     currentUser.restriction_reason.clear();
-                    TLRPC.TL_restrictionReason reason = new TLRPC.TL_restrictionReason();
+                    TLRPC.RestrictionReason reason = new TLRPC.RestrictionReason();
                     reason.text = builder.toString();
                     reason.reason = "";
                     reason.platform = "";
@@ -929,11 +929,11 @@ public class PhonebookShareAlert extends BottomSheet {
                 if (parentFragment instanceof ChatActivity && ((ChatActivity) parentFragment).isInScheduleMode()) {
                     ChatActivity chatActivity = (ChatActivity) parentFragment;
                     AlertsCreator.createScheduleDatePickerDialog(getContext(), chatActivity.getDialogId(), (notify, scheduleDate) -> {
-                        delegate.didSelectContact(currentUser, notify, scheduleDate);
+                        delegate.didSelectContact(currentUser, notify, scheduleDate, 0, false);
                         dismiss();
                     }, resourcesProvider);
                 } else {
-                    delegate.didSelectContact(currentUser, true, 0);
+                    delegate.didSelectContact(currentUser, true, 0, 0, false);
                     dismiss();
                 }
             }

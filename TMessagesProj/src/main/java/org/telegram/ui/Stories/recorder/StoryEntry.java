@@ -7,6 +7,7 @@ import android.graphics.Canvas;
 import android.graphics.LinearGradient;
 import android.graphics.Matrix;
 import android.graphics.Paint;
+import android.graphics.Rect;
 import android.graphics.Shader;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
@@ -21,7 +22,6 @@ import androidx.annotation.NonNull;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
-import org.telegram.messenger.BuildVars;
 import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.DialogObject;
 import org.telegram.messenger.Emoji;
@@ -37,7 +37,6 @@ import org.telegram.messenger.UserConfig;
 import org.telegram.messenger.Utilities;
 import org.telegram.messenger.VideoEditedInfo;
 import org.telegram.messenger.video.MediaCodecVideoConvertor;
-import org.telegram.tgnet.AbstractSerializedData;
 import org.telegram.tgnet.ConnectionsManager;
 import org.telegram.tgnet.RequestDelegate;
 import org.telegram.tgnet.TLObject;
@@ -104,6 +103,13 @@ public class StoryEntry {
     public boolean muted;
     public float left, right = 1;
 
+    public boolean isEditingCover;
+    public TLRPC.Document editingCoverDocument;
+    public Utilities.Callback<Utilities.Callback<TLRPC.Document>> updateDocumentRef;
+    public long cover = -1;
+    public boolean coverSet;
+    public Bitmap coverBitmap;
+
 //    public int width, height;
     public long duration;
 
@@ -138,6 +144,10 @@ public class StoryEntry {
     public boolean allowScreenshots;
 
     public int period = 86400;
+
+    public long botId;
+    public String botLang = "";
+    public TLRPC.InputMedia editingBotPreview;
 
     // share as message (postponed)
     public ArrayList<Long> shareUserIds;
@@ -201,7 +211,7 @@ public class StoryEntry {
         return false;
     }
 
-    private boolean isAnimated(TLRPC.Document document, String path) {
+    public static boolean isAnimated(TLRPC.Document document, String path) {
         return document != null && (
             "video/webm".equals(document.mime_type) || "video/mp4".equals(document.mime_type) ||
             MessageObject.isAnimatedStickerDocument(document, true) && RLottieDrawable.getFramesCount(path, null) > 1
@@ -212,6 +222,9 @@ public class StoryEntry {
         if (drawable == null) {
             return;
         }
+        Rect rect = new Rect(drawable.getBounds());
+        Drawable.Callback callback = drawable.getCallback();
+        drawable.setCallback(null);
         if (drawable instanceof BitmapDrawable) {
             BitmapDrawable bd = (BitmapDrawable) drawable;
             int bw = bd.getBitmap().getWidth();
@@ -223,6 +236,8 @@ public class StoryEntry {
             drawable.setBounds(0, 0, w, h);
             drawable.draw(canvas);
         }
+        drawable.setBounds(rect);
+        drawable.setCallback(callback);
     }
 
     public Bitmap buildBitmap(float scale, Bitmap mainFileBitmap) {
@@ -235,7 +250,7 @@ public class StoryEntry {
 
         if (backgroundFile != null) {
             try {
-                Bitmap paintBitmap = getScaledBitmap(opts -> BitmapFactory.decodeFile(backgroundFile.getPath(), opts), w, h, false);
+                Bitmap paintBitmap = getScaledBitmap(opts -> BitmapFactory.decodeFile(backgroundFile.getPath(), opts), w, h, false, true);
                 canvas.save();
                 float s = resultWidth / (float) paintBitmap.getWidth();
                 canvas.scale(s, s);
@@ -274,7 +289,7 @@ public class StoryEntry {
             File file = filterFile != null ? filterFile : this.file;
             if (file != null) {
                 try {
-                    Bitmap fileBitmap = getScaledBitmap(opts -> BitmapFactory.decodeFile(file.getPath(), opts), w, h, true);
+                    Bitmap fileBitmap = getScaledBitmap(opts -> BitmapFactory.decodeFile(file.getPath(), opts), w, h, true, true);
                     final float s = (float) width / fileBitmap.getWidth();
                     tempMatrix.preScale(s, s);
                     tempMatrix.postScale(scale, scale);
@@ -287,7 +302,7 @@ public class StoryEntry {
 
             if (paintFile != null) {
                 try {
-                    Bitmap paintBitmap = getScaledBitmap(opts -> BitmapFactory.decodeFile(paintFile.getPath(), opts), w, h, false);
+                    Bitmap paintBitmap = getScaledBitmap(opts -> BitmapFactory.decodeFile(paintFile.getPath(), opts), w, h, false, true);
                     canvas.save();
                     float s = resultWidth / (float) paintBitmap.getWidth();
                     canvas.scale(s, s);
@@ -302,7 +317,7 @@ public class StoryEntry {
 
             if (messageFile != null) {
                 try {
-                    Bitmap paintBitmap = getScaledBitmap(opts -> BitmapFactory.decodeFile(messageFile.getPath(), opts), w, h, false);
+                    Bitmap paintBitmap = getScaledBitmap(opts -> BitmapFactory.decodeFile(messageFile.getPath(), opts), w, h, false, true);
                     canvas.save();
                     float s = resultWidth / (float) paintBitmap.getWidth();
                     canvas.scale(s, s);
@@ -317,7 +332,7 @@ public class StoryEntry {
 
             if (paintEntitiesFile != null) {
                 try {
-                    Bitmap paintBitmap = getScaledBitmap(opts -> BitmapFactory.decodeFile(paintEntitiesFile.getPath(), opts), w, h, false);
+                    Bitmap paintBitmap = getScaledBitmap(opts -> BitmapFactory.decodeFile(paintEntitiesFile.getPath(), opts), w, h, false, true);
                     canvas.save();
                     float s = resultWidth / (float) paintBitmap.getWidth();
                     canvas.scale(s, s);
@@ -355,7 +370,7 @@ public class StoryEntry {
         public Bitmap decode(BitmapFactory.Options options);
     }
 
-    public static Bitmap getScaledBitmap(DecodeBitmap decode, int maxWidth, int maxHeight, boolean allowBlur) {
+    public static Bitmap getScaledBitmap(DecodeBitmap decode, int maxWidth, int maxHeight, boolean allowBlur, boolean scale) {
         BitmapFactory.Options opts = new BitmapFactory.Options();
         opts.inJustDecodeBounds = true;
         decode.decode(opts);
@@ -371,15 +386,15 @@ public class StoryEntry {
             return decode.decode(opts);
         }
 
-        if (enoughMemory && SharedConfig.getDevicePerformanceClass() >= SharedConfig.PERFORMANCE_CLASS_AVERAGE) {
+        if (scale && enoughMemory && SharedConfig.getDevicePerformanceClass() >= SharedConfig.PERFORMANCE_CLASS_AVERAGE) {
             Bitmap bitmap = decode.decode(opts);
 
             final float scaleX = maxWidth / (float) bitmap.getWidth(), scaleY = maxHeight / (float) bitmap.getHeight();
-            float scale = Math.max(scaleX, scaleY);
+            float s = Math.max(scaleX, scaleY);
 //            if (SharedConfig.getDevicePerformanceClass() >= SharedConfig.PERFORMANCE_CLASS_HIGH) {
 //                scale = Math.min(scale * 2, 1);
 //            }
-            final int w = (int) (bitmap.getWidth() * scale), h = (int) (bitmap.getHeight() * scale);
+            final int w = (int) (bitmap.getWidth() * s), h = (int) (bitmap.getHeight() * s);
 
             Bitmap scaledBitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
             Canvas canvas = new Canvas(scaledBitmap);
@@ -389,10 +404,10 @@ public class StoryEntry {
             final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
             paint.setShader(shader);
 
-            int blurRadius = Utilities.clamp(Math.round(1f / scale), 8, 0);
+            int blurRadius = Utilities.clamp(Math.round(1f / s), 8, 0);
 
             matrix.reset();
-            matrix.postScale(scale, scale);
+            matrix.postScale(s, s);
             shader.setLocalMatrix(matrix);
             canvas.drawRect(0, 0, w, h, paint);
 
@@ -886,7 +901,9 @@ public class StoryEntry {
             matrix.postTranslate(width / 2f, height / 2f);
         }
         float scale = (float) resultWidth / width;
-        if ((float) height / (float) width > 1.29f) {
+        if (botId != 0) {
+            scale = Math.min(scale, (float) resultHeight / height);
+        } else if ((float) height / (float) width > 1.29f) {
             scale = Math.max(scale, (float) resultHeight / height);
         }
         matrix.postScale(scale, scale);
@@ -1033,6 +1050,7 @@ public class StoryEntry {
                 info.startTime = (long) (left * duration) * 1000L;
                 info.endTime = (long) (right * duration) * 1000L;
                 info.estimatedDuration = info.endTime - info.startTime;
+                info.volume = videoVolume;
                 info.muted = muted;
                 info.estimatedSize = (long) (params[AnimatedFileDrawable.PARAM_NUM_AUDIO_FRAME_SIZE] + params[AnimatedFileDrawable.PARAM_NUM_DURATION] / 1000.0f * encoderBitrate / 8);
                 info.estimatedSize = Math.max(file.length(), info.estimatedSize);
@@ -1056,6 +1074,7 @@ public class StoryEntry {
                 info.endTime = -1;
                 info.muted = true;
                 info.originalBitrate = -1;
+                info.volume = 1f;
                 info.bitrate = -1;
                 info.framerate = 30;
                 info.estimatedSize = (long) (duration / 1000.0f * encoderBitrate / 8);
@@ -1128,7 +1147,7 @@ public class StoryEntry {
         location.file_reference = new byte[0];
 
         TLObject object;
-        if ("mp4".equals(ext)) {
+        if ("mp4".equals(ext) || "webm".equals(ext)) {
             TLRPC.VideoSize videoSize = new TLRPC.TL_videoSize_layer127();
             videoSize.location = location;
             object = videoSize;
@@ -1376,6 +1395,26 @@ public class StoryEntry {
         newEntry.roundThumb = roundThumb;
         newEntry.roundOffset = roundOffset;
         newEntry.roundVolume = roundVolume;
+        newEntry.isEditingCover = isEditingCover;
+        newEntry.botId = botId;
+        newEntry.botLang = botLang;
+        newEntry.editingBotPreview = editingBotPreview;
+        newEntry.cover = cover;
         return newEntry;
+    }
+
+    public static long getCoverTime(TL_stories.StoryItem storyItem) {
+        if (storyItem == null) return 0;
+        if (storyItem.media == null || storyItem.media.document == null) return 0;
+        TLRPC.Document doc = storyItem.media.document;
+        TLRPC.TL_documentAttributeVideo attr = null;
+        for (int i = 0; i < doc.attributes.size(); ++i) {
+            if (doc.attributes.get(i) instanceof TLRPC.TL_documentAttributeVideo) {
+                attr = (TLRPC.TL_documentAttributeVideo) doc.attributes.get(i);
+                break;
+            }
+        }
+        if (attr == null) return 0;
+        return (long) (attr.video_start_ts * 1000L);
     }
 }

@@ -14,10 +14,12 @@ import android.graphics.RectF;
 import android.os.Build;
 import android.text.Layout;
 
+import androidx.annotation.NonNull;
+
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.LiteMode;
 
-public class LinkPath extends Path {
+public class LinkPath extends CornerPath {
 
     private Layout currentLayout;
     private int currentLine;
@@ -45,11 +47,13 @@ public class LinkPath extends Path {
 
     public LinkPath() {
         super();
+        useCornerPathImplementation = false;
     }
 
     public LinkPath(boolean roundRect) {
         super();
         useRoundRect = roundRect;
+        useCornerPathImplementation = false;
     }
 
     public void setCurrentLayout(Layout layout, int start, float yOffset) {
@@ -103,7 +107,7 @@ public class LinkPath extends Path {
     private float minX = Float.MAX_VALUE, maxX, minY = Float.MAX_VALUE, maxY;
 
     @Override
-    public void addRect(float left, float top, float right, float bottom, Direction dir) {
+    public void addRect(float left, float top, float right, float bottom, @NonNull Direction dir) {
         if (currentLayout == null) {
             superAddRect(left, top, right, bottom, dir);
             return;
@@ -147,7 +151,7 @@ public class LinkPath extends Path {
             }
             centerX = (right + left) / 2;
             centerY = (y2 + y) / 2;
-            if (useRoundRect && LiteMode.isEnabled(LiteMode.FLAGS_CHAT)) {
+            if (useRoundRect) {
 //            final CharSequence text = currentLayout.getText();
 //            int startOffset = currentLayout.getOffsetForHorizontal(currentLine, left), endOffset = currentLayout.getOffsetForHorizontal(currentLine, right) + 1;
                 boolean startsWithWhitespace = false; // startOffset >= 0 && startOffset < text.length() && text.charAt(startOffset) == ' ';

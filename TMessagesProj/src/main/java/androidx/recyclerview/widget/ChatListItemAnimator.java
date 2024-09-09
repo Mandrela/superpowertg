@@ -5,6 +5,7 @@ import android.animation.AnimatorListenerAdapter;
 import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
 import android.animation.ValueAnimator;
+import android.util.Log;
 import android.util.LongSparseArray;
 import android.view.View;
 import android.view.ViewPropertyAnimator;
@@ -44,6 +45,7 @@ public class ChatListItemAnimator extends DefaultItemAnimator {
     public static final long DEFAULT_DURATION = 250;
     public static final Interpolator DEFAULT_INTERPOLATOR = new CubicBezierInterpolator(0.19919472913616398, 0.010644531250000006, 0.27920937042459737, 0.91025390625);
 
+    @Nullable
     private final ChatActivity activity;
     private final RecyclerListView recyclerListView;
 
@@ -51,6 +53,7 @@ public class ChatListItemAnimator extends DefaultItemAnimator {
     private ArrayList<MessageObject.GroupedMessages> willChangedGroups = new ArrayList<>();
 
     HashMap<RecyclerView.ViewHolder,Animator> animators = new HashMap<>();
+    ArrayList<View> thanosViews = new ArrayList<>();
 
     ArrayList<Runnable> runOnAnimationsEnd = new ArrayList<>();
     HashMap<Long, Long> groupIdToEnterDelay = new HashMap<>();
@@ -345,7 +348,7 @@ public class ChatListItemAnimator extends DefaultItemAnimator {
         if (!(chatMessageCell != null && chatMessageCell.getTransitionParams().ignoreAlpha)) {
             holder.itemView.setAlpha(1);
         }
-        if (chatMessageCell != null && activity.animatingMessageObjects.contains(chatMessageCell.getMessageObject())) {
+        if (activity != null && chatMessageCell != null && activity.animatingMessageObjects.contains(chatMessageCell.getMessageObject())) {
             activity.animatingMessageObjects.remove(chatMessageCell.getMessageObject());
             if (activity.getChatActivityEnterView().canShowMessageTransition()) {
                 if (chatMessageCell.getMessageObject().isVoice()) {
@@ -925,7 +928,12 @@ public class ChatListItemAnimator extends DefaultItemAnimator {
                 animator.removeAllListeners();
                 restoreTransitionParams(holder.itemView);
                 if (holder.itemView instanceof ChatMessageCell) {
-                    MessageObject.GroupedMessages group = ((ChatMessageCell) view).getCurrentMessagesGroup();
+                    ChatMessageCell cell = (ChatMessageCell) holder.itemView;
+                    if (cell.makeVisibleAfterChange) {
+                        cell.makeVisibleAfterChange = false;
+                        cell.setVisibility(View.VISIBLE);
+                    }
+                    MessageObject.GroupedMessages group = cell.getCurrentMessagesGroup();
                     if (group != null) {
                         group.transitionParams.reset();
                     }
@@ -983,7 +991,7 @@ public class ChatListItemAnimator extends DefaultItemAnimator {
         return true;
     }
 
-    void animateChangeImpl(final ChangeInfo changeInfo) {
+    public void animateChangeImpl(final ChangeInfo changeInfo) {
         final RecyclerView.ViewHolder holder = changeInfo.oldHolder;
         final View view = holder == null ? null : holder.itemView;
         final RecyclerView.ViewHolder newHolder = changeInfo.newHolder;
@@ -1092,6 +1100,12 @@ public class ChatListItemAnimator extends DefaultItemAnimator {
                 animator.cancel();
             }
         }
+        if (!thanosViews.isEmpty()) {
+            ThanosEffect thanosEffect = getThanosEffectContainer.run();
+            if (thanosEffect != null) {
+                thanosEffect.kill();
+            }
+        }
     }
 
     @Override
@@ -1099,6 +1113,12 @@ public class ChatListItemAnimator extends DefaultItemAnimator {
         Animator animator = animators.remove(item);
         if (animator != null) {
             animator.cancel();
+        }
+        if (thanosViews.contains(item.itemView)) {
+            ThanosEffect thanosEffect = getThanosEffectContainer.run();
+            if (thanosEffect != null) {
+                thanosEffect.cancel(item.itemView);
+            }
         }
         super.endAnimation(item);
         restoreTransitionParams(item.itemView);
@@ -1229,6 +1249,12 @@ public class ChatListItemAnimator extends DefaultItemAnimator {
         Animator a = animators.remove(item);
         if (a != null) {
             a.cancel();
+        }
+        if (thanosViews.contains(item.itemView)) {
+            ThanosEffect thanosEffect = getThanosEffectContainer.run();
+            if (thanosEffect != null) {
+                thanosEffect.cancel(item.itemView);
+            }
         }
 
         boolean oldItem = false;
@@ -1447,7 +1473,9 @@ public class ChatListItemAnimator extends DefaultItemAnimator {
                     dispatchRemoveFinished(holder);
                     dispatchFinishedWhenDone();
                 }
+                thanosViews.remove(view);
             });
+            thanosViews.add(view);
         } else {
             ObjectAnimator animator = ObjectAnimator.ofFloat(view, View.ALPHA, view.getAlpha(), 0f);
             dispatchRemoveStarting(holder);
@@ -1497,7 +1525,9 @@ public class ChatListItemAnimator extends DefaultItemAnimator {
                 }
                 dispatchFinishedWhenDone();
             }
+            thanosViews.removeAll(views);
         });
+        thanosViews.add(views.get(0));
         recyclerListView.stopScroll();
     }
 

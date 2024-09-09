@@ -193,6 +193,7 @@ public class WebviewActivity extends BaseFragment {
         } else if (type == TYPE_STAT) {
             actionBar.setBackgroundColor(Theme.getColor(Theme.key_dialogBackground));
             actionBar.setItemsColor(Theme.getColor(Theme.key_player_actionBarItems), false);
+            actionBar.setItemsColor(Theme.getColor(Theme.key_player_actionBarItems), true);
             actionBar.setItemsBackgroundColor(Theme.getColor(Theme.key_player_actionBarSelector), false);
             actionBar.setTitleColor(Theme.getColor(Theme.key_player_actionBarTitle));
             actionBar.setSubtitleColor(Theme.getColor(Theme.key_player_actionBarSubtitle));
@@ -217,6 +218,7 @@ public class WebviewActivity extends BaseFragment {
         FrameLayout frameLayout = (FrameLayout) fragmentView;
         if (Build.VERSION.SDK_INT >= 19) {
             webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+            webView.getSettings().setLayoutAlgorithm(WebSettings.LayoutAlgorithm.TEXT_AUTOSIZING);
         }
 
         if (Build.VERSION.SDK_INT >= 17) {

@@ -516,6 +516,10 @@ public class DraftsController {
 
         public TLRPC.InputPeer peer;
 
+        public long botId;
+        public String botLang;
+        public TLRPC.InputMedia botEdit;
+
         public StoryDraft(@NonNull StoryEntry entry) {
             this.id = entry.draftId;
             this.date = entry.draftDate;
@@ -561,7 +565,7 @@ public class DraftsController {
             this.audioRight = entry.audioRight;
             this.audioVolume = entry.audioVolume;
 
-            this.roundPath = entry.round == null ? "" : entry.round.getAbsolutePath();
+            this.roundPath = entry.round == null ? null : entry.round.getAbsolutePath();
             this.roundThumb = entry.roundThumb;
             this.roundDuration = entry.roundDuration;
             this.roundOffset = entry.roundOffset;
@@ -572,6 +576,9 @@ public class DraftsController {
             this.videoVolume = entry.videoVolume;
 
             this.peer = entry.peer;
+            this.botId = entry.botId;
+            this.botLang = entry.botLang;
+            this.botEdit = entry.editingBotPreview;
         }
 
         public StoryEntry toEntry() {
@@ -666,6 +673,10 @@ public class DraftsController {
             entry.videoVolume = videoVolume;
 
             entry.peer = peer;
+            entry.botId = botId;
+            entry.botLang = botLang;
+            entry.editingBotPreview = botEdit;
+
             return entry;
         }
 
@@ -778,7 +789,7 @@ public class DraftsController {
                 new TLRPC.TL_inputPeerSelf().serializeToStream(stream);
             }
 
-            if (roundPath == null) {
+            if (TextUtils.isEmpty(roundPath)) {
                 stream.writeInt32(TLRPC.TL_null.constructor);
             } else {
                 stream.writeInt32(TLRPC.TL_documentAttributeVideo.constructor);
@@ -791,6 +802,15 @@ public class DraftsController {
             }
 
             stream.writeFloat(videoVolume);
+
+            stream.writeInt64(botId);
+            stream.writeString(botLang == null ? "" : botLang);
+            if (botEdit == null) {
+                stream.writeInt32(TLRPC.TL_null.constructor);
+            } else {
+                botEdit.serializeToStream(stream);
+            }
+
         }
 
         public int getObjectSize() {
@@ -975,6 +995,14 @@ public class DraftsController {
             }
             if (stream.remaining() > 0) {
                 videoVolume = stream.readFloat(exception);
+            }
+            if (stream.remaining() > 0) {
+                botId = stream.readInt64(exception);
+                botLang = stream.readString(exception);
+                magic = stream.readInt32(exception);
+                if (magic != TLRPC.TL_null.constructor) {
+                    botEdit = TLRPC.InputMedia.TLdeserialize(stream, magic, exception);
+                }
             }
         }
     }

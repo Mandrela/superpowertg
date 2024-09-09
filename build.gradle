@@ -14,3 +14,10 @@ buildscript {
 repositories {
     google()
 }
+
+Properties properties = new Properties()
+properties.load(file('local.properties').newDataInputStream())
+
+project.ext.set("RELEASE_STORE_PASSWORD", properties.get("RELEASE_STORE_PASSWORD"))
+project.ext.set("RELEASE_KEY_ALIAS", properties.get("RELEASE_KEY_ALIAS"))
+project.ext.set("RELEASE_KEY_PASSWORD", properties.get("RELEASE_KEY_PASSWORD"))

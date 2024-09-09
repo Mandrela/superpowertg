@@ -8,22 +8,28 @@ import android.graphics.Canvas;
 import android.graphics.ColorFilter;
 import android.graphics.Paint;
 import android.graphics.Rect;
+import android.graphics.drawable.Drawable;
 import android.text.Layout;
 import android.text.Spannable;
 import android.text.SpannableString;
 import android.text.Spanned;
+import android.text.TextUtils;
 import android.text.style.CharacterStyle;
 import android.text.style.ReplacementSpan;
+import android.util.Log;
 import android.util.LongSparseArray;
+import android.view.Gravity;
 import android.view.View;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.Emoji;
 import org.telegram.messenger.ImageReceiver;
 import org.telegram.messenger.LiteMode;
+import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.UserConfig;
 import org.telegram.tgnet.TLRPC;
@@ -39,14 +45,16 @@ public class AnimatedEmojiSpan extends ReplacementSpan {
 
     public long documentId;
     public TLRPC.Document document;
+    public String emoji;
     private float scale;
-    private float extraScale = 1f;
+    public float extraScale = 1f;
     public boolean standard;
     public boolean full = false;
     public boolean top = false;
+    public boolean invert = false;
 
     private Paint.FontMetricsInt fontMetrics;
-    private float size = AndroidUtilities.dp(20);
+    public float size = AndroidUtilities.dp(20);
     public int cacheType = -1;
     public String documentAbsolutePath;
     protected int measuredSize;
@@ -71,7 +79,6 @@ public class AnimatedEmojiSpan extends ReplacementSpan {
     public void setAdded() {
         isAdded = true;
         extraScale = 0f;
-        lockPositionChanging = true;
     }
 
     public void setAnimateChanges() {
@@ -86,8 +93,13 @@ public class AnimatedEmojiSpan extends ReplacementSpan {
 
     public float getExtraScale() {
         if (isAdded) {
+            lockPositionChanging = true;
             isAdded = false;
             extraScale = 0f;
+            if (scaleAnimator != null) {
+                scaleAnimator.removeAllListeners();
+                scaleAnimator.cancel();
+            }
             scaleAnimator = ValueAnimator.ofFloat(extraScale, 1f);
             scaleAnimator.addUpdateListener(animator -> {
                 extraScale = (float) animator.getAnimatedValue();
@@ -98,6 +110,7 @@ public class AnimatedEmojiSpan extends ReplacementSpan {
                 @Override
                 public void onAnimationEnd(Animator animation) {
                     scaleAnimator = null;
+                    lockPositionChanging = false;
                 }
             });
             scaleAnimator.setDuration(130);
@@ -358,7 +371,9 @@ public class AnimatedEmojiSpan extends ReplacementSpan {
         public Layout layout;
         public AnimatedEmojiSpan span;
         public Rect drawableBounds;
+        @Nullable
         public AnimatedEmojiDrawable drawable;
+        public Drawable thumbDrawable;
         public boolean skipDraw;
         public float drawingYOffset;
         public float alpha;
@@ -411,13 +426,29 @@ public class AnimatedEmojiSpan extends ReplacementSpan {
                 skipDraw = false;
             }
 
+            if (drawable == null) {
+                if (thumbDrawable != null) {
+                    float scale = span.getExtraScale();
+                    thumbDrawable.setAlpha((int) (0xFF * alpha * this.alpha));
+                    thumbDrawable.setBounds(drawableBounds);
+                    if (scale != 1f || span.invert) {
+                        canvas.save();
+                        canvas.scale(scale * (span.invert ? -1 : 1), scale, drawableBounds.centerX(), drawableBounds.centerY());
+                        thumbDrawable.draw(canvas);
+                        canvas.restore();
+                    } else {
+                        thumbDrawable.draw(canvas);
+                    }
+                }
+                return;
+            }
             if (drawable.getImageReceiver() != null) {
                 drawable.setColorFilter(colorFilter == null ? Theme.chat_animatedEmojiTextColorFilter : colorFilter);
                 drawable.setTime(time);
                 float scale = span.getExtraScale();
-                if (scale != 1f) {
+                if (scale != 1f || span.invert) {
                     canvas.save();
-                    canvas.scale(scale, scale, drawableBounds.centerX(), drawableBounds.centerY());
+                    canvas.scale(scale * (span.invert ? -1 : 1), scale, drawableBounds.centerX(), drawableBounds.centerY());
                     drawable.draw(canvas, drawableBounds, alpha * this.alpha);
                     canvas.restore();
                 } else {
@@ -495,7 +526,7 @@ public class AnimatedEmojiSpan extends ReplacementSpan {
                     if (clone && textLayout.getText() instanceof Spannable) {
                         int start = spanned.getSpanStart(span), end = spanned.getSpanEnd(span);
                         ((Spannable) spanned).removeSpan(span);
-                        ((Spannable) spanned).setSpan(span = cloneSpan(span), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                        ((Spannable) spanned).setSpan(span = cloneSpan(span, null), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                     }
                     AnimatedEmojiHolder holder = null;
                     if (prev == null) {
@@ -516,8 +547,15 @@ public class AnimatedEmojiSpan extends ReplacementSpan {
                             holder.drawable = AnimatedEmojiDrawable.make(UserConfig.selectedAccount, localCacheType, span.getDocumentId(), span.documentAbsolutePath);
                         } else if (span.document != null) {
                             holder.drawable = AnimatedEmojiDrawable.make(UserConfig.selectedAccount, localCacheType, span.document);
-                        } else {
-                            holder.drawable = AnimatedEmojiDrawable.make(UserConfig.selectedAccount, localCacheType, span.documentId);
+                        } else if (span.documentId != 0) {
+                            holder.drawable = AnimatedEmojiDrawable.make(UserConfig.selectedAccount, localCacheType, span.documentId, null);
+                        }
+                        if ((span.cacheType == AnimatedEmojiDrawable.CACHE_TYPE_STANDARD_EMOJI || span.cacheType == AnimatedEmojiDrawable.CACHE_TYPE_ALERT_STANDARD_EMOJI) && !TextUtils.isEmpty(span.emoji)) {
+                            if (holder.drawable != null) {
+                                holder.drawable.setupEmojiThumb(span.emoji);
+                            } else {
+                                holder.thumbDrawable = Emoji.getEmojiDrawable(span.emoji);
+                            }
                         }
                         holder.insideSpoiler = isInsideSpoiler(textLayout, spanned.getSpanStart(span), spanned.getSpanEnd(span));
                         holder.drawableBounds = new Rect();
@@ -720,7 +758,9 @@ public class AnimatedEmojiSpan extends ReplacementSpan {
                 backgroundDrawingArray.add(chunkByLayout);
             }
             chunkByLayout.add(holder);
-            holder.drawable.addView(holder);
+            if (holder.drawable != null) {
+                holder.drawable.addView(holder);
+            }
         }
 
         public boolean hasLayout(Layout layout) {
@@ -754,7 +794,9 @@ public class AnimatedEmojiSpan extends ReplacementSpan {
             } else {
                 throw new RuntimeException("!!!");
             }
-            holder.drawable.removeView(holder);
+            if (holder.drawable != null) {
+                holder.drawable.removeView(holder);
+            }
         }
 
         public void release() {
@@ -826,7 +868,7 @@ public class AnimatedEmojiSpan extends ReplacementSpan {
                     public void drawInBackground(Canvas canvas) {
                         for (int i = 0; i < backgroundHolders.size(); i++) {
                             AnimatedEmojiHolder holder = backgroundHolders.get(i);
-                            if (holder != null && holder.backgroundDrawHolder[threadIndex] != null) {
+                            if (holder != null && holder.drawable != null && holder.backgroundDrawHolder[threadIndex] != null) {
                                 holder.drawable.draw(canvas, holder.backgroundDrawHolder[threadIndex], true);
                             }
                         }
@@ -904,10 +946,9 @@ public class AnimatedEmojiSpan extends ReplacementSpan {
                     continue;
                 }
                 AnimatedEmojiDrawable drawable = holder.drawable;
-                if (drawable == null) {
-                    continue;
+                if (drawable != null) {
+                    drawable.setColorFilter(colorFilter);
                 }
-                drawable.setColorFilter(colorFilter);
                 if (!holder.span.spanDrawn) {
                     continue;
                 }
@@ -925,6 +966,7 @@ public class AnimatedEmojiSpan extends ReplacementSpan {
 
                 holder.drawingYOffset = drawingYOffset;
                 holder.alpha = spoilerAlpha;
+
                 if (backgroundThreadDrawable == null) {
                     holder.draw(canvas, time, boundTop, boundBottom, alpha, colorFilter);
                 }
@@ -935,12 +977,15 @@ public class AnimatedEmojiSpan extends ReplacementSpan {
         }
     }
 
-    public static AnimatedEmojiSpan cloneSpan(AnimatedEmojiSpan span) {
+    public static AnimatedEmojiSpan cloneSpan(AnimatedEmojiSpan span, Paint.FontMetricsInt fontMetricsInt) {
         AnimatedEmojiSpan animatedEmojiSpan;
         if (span.document != null) {
-            animatedEmojiSpan = new AnimatedEmojiSpan(span.document, span.fontMetrics);
+            animatedEmojiSpan = new AnimatedEmojiSpan(span.document, fontMetricsInt != null ? fontMetricsInt : span.fontMetrics);
         } else {
-            animatedEmojiSpan = new AnimatedEmojiSpan(span.documentId, span.scale, span.fontMetrics);
+            animatedEmojiSpan = new AnimatedEmojiSpan(span.documentId, span.scale, fontMetricsInt != null ? fontMetricsInt : span.fontMetrics);
+        }
+        if (fontMetricsInt != null) {
+            animatedEmojiSpan.size = span.size;
         }
         animatedEmojiSpan.fromEmojiKeyboard = span.fromEmojiKeyboard;
         animatedEmojiSpan.isAdded = span.isAdded;
@@ -949,10 +994,14 @@ public class AnimatedEmojiSpan extends ReplacementSpan {
     }
 
     public static CharSequence cloneSpans(CharSequence text) {
-        return cloneSpans(text, -1);
+        return cloneSpans(text, -1, null);
     }
 
     public static CharSequence cloneSpans(CharSequence text, int newCacheType) {
+        return cloneSpans(text, newCacheType, null);
+    }
+
+    public static CharSequence cloneSpans(CharSequence text, int newCacheType, Paint.FontMetricsInt fontMetricsInt) {
         if (!(text instanceof Spanned)) {
             return text;
         }
@@ -977,7 +1026,7 @@ public class AnimatedEmojiSpan extends ReplacementSpan {
 
                 AnimatedEmojiSpan oldSpan = (AnimatedEmojiSpan) spans[i];
                 newText.removeSpan(oldSpan);
-                AnimatedEmojiSpan newSpan = cloneSpan(oldSpan);
+                AnimatedEmojiSpan newSpan = cloneSpan(oldSpan, fontMetricsInt);
                 if (newCacheType != -1) {
                     newSpan.cacheType = newCacheType;
                 }
@@ -1023,7 +1072,16 @@ public class AnimatedEmojiSpan extends ReplacementSpan {
         @Override
         protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
+            float offsetY = (getGravity() & Gravity.CENTER_VERTICAL) != 0 && getLayout() != null ? getPaddingTop() + (getHeight() - getPaddingTop() - getPaddingBottom() - getLayout().getHeight()) / 2f : 0;
+            float offsetX = LocaleController.isRTL ? getPaddingRight() : getPaddingLeft();
+            if (offsetY != 0 || offsetX != 0) {
+                canvas.save();
+                canvas.translate(offsetX, offsetY);
+            }
             AnimatedEmojiSpan.drawAnimatedEmojis(canvas, getLayout(), stack, 0, null, 0, 0, 0, 1f);
+            if (offsetY != 0 || offsetX != 0) {
+                canvas.restore();
+            }
         }
     }
 

@@ -18,6 +18,7 @@ import org.telegram.tgnet.TLRPC;
 public class UserObject {
 
     public static final long REPLY_BOT = 1271266957L;
+    public static final long ANONYMOUS = 2666000L;
 
     public static boolean isDeleted(TLRPC.User user) {
         return user == null || user instanceof TLRPC.TL_userDeleted_old2 || user instanceof TLRPC.TL_userEmpty || user.deleted;
@@ -32,7 +33,11 @@ public class UserObject {
     }
 
     public static boolean isReplyUser(TLRPC.User user) {
-        return user != null && (user.id == 708513 || user.id == REPLY_BOT);
+        return user != null && (user.id == 708513L || user.id == REPLY_BOT);
+    }
+
+    public static boolean isAnonymous(TLRPC.User user) {
+        return user != null && user.id == ANONYMOUS;
     }
 
     public static boolean isReplyUser(long did) {
@@ -102,7 +107,25 @@ public class UserObject {
         } else if (!allowShort && name.length() <= 2) {
             return ContactsController.formatName(user.first_name, user.last_name);
         }
-        return !TextUtils.isEmpty(name) ? name : LocaleController.getString("HiddenName", R.string.HiddenName);
+        return !TextUtils.isEmpty(name) ? name : LocaleController.getString(R.string.HiddenName);
+    }
+
+    public static String getForcedFirstName(TLRPC.User user) {
+        if (user == null || isDeleted(user)) {
+            return LocaleController.getString(R.string.HiddenName);
+        }
+        String name = user.first_name;
+        if (TextUtils.isEmpty(name)) {
+            name = user.last_name;
+        }
+        if (name == null) {
+            return LocaleController.getString(R.string.HiddenName);
+        }
+        int index = name.indexOf(" ", 2);
+        if (index >= 0) {
+            name = name.substring(0, index);
+        }
+        return name;
     }
 
     public static boolean hasPhoto(TLRPC.User user) {

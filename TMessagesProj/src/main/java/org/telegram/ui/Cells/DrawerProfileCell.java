@@ -165,7 +165,7 @@ public class DrawerProfileCell extends FrameLayout implements NotificationCenter
         });
         nameTextView.setPadding(0, AndroidUtilities.dp(4), 0, AndroidUtilities.dp(4));
         nameTextView.setTextSize(15);
-        nameTextView.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
+        nameTextView.setTypeface(AndroidUtilities.bold());
         nameTextView.setGravity(Gravity.LEFT | Gravity.CENTER_VERTICAL);
         nameTextView.setEllipsizeByGradient(true);
         nameTextView.setRightDrawableOutside(true);
@@ -775,5 +775,18 @@ public class DrawerProfileCell extends FrameLayout implements NotificationCenter
 
     public View getEmojiStatusDrawableParent() {
         return nameTextView;
+    }
+
+    public void updateSunDrawable(boolean toDark) {
+        if (sunDrawable != null) {
+            if (toDark) {
+                sunDrawable.setCustomEndFrame(36);
+            } else {
+                sunDrawable.setCustomEndFrame(0);
+            }
+        }
+        if (darkThemeView != null) {
+            darkThemeView.playAnimation();
+        }
     }
 }

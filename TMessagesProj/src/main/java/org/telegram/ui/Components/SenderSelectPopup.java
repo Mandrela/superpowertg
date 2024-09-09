@@ -66,6 +66,7 @@ public class SenderSelectPopup extends ActionBarPopupWindow {
 
     private TLRPC.ChatFull chatFull;
     private TLRPC.TL_channels_sendAsPeers sendAsPeers;
+    private final int currentAccount;
 
     private FrameLayout scrimPopupContainerLayout;
     private View headerShadow;
@@ -92,6 +93,7 @@ public class SenderSelectPopup extends ActionBarPopupWindow {
 
         this.chatFull = chatFull;
         this.sendAsPeers = sendAsPeers;
+        this.currentAccount = parentFragment == null ? UserConfig.selectedAccount : parentFragment.getCurrentAccount();
 
         scrimPopupContainerLayout = new BackButtonFrameLayout(context);
         scrimPopupContainerLayout.setLayoutParams(LayoutHelper.createFrame(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT));
@@ -131,7 +133,7 @@ public class SenderSelectPopup extends ActionBarPopupWindow {
         headerText.setTextColor(Theme.getColor(Theme.key_dialogTextBlue));
         headerText.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
         headerText.setText(LocaleController.getString("SendMessageAsTitle", R.string.SendMessageAsTitle));
-        headerText.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"), Typeface.BOLD);
+        headerText.setTypeface(AndroidUtilities.bold(), Typeface.BOLD);
         int dp = AndroidUtilities.dp(18);
         headerText.setPadding(dp, AndroidUtilities.dp(12), dp, AndroidUtilities.dp(12));
         recyclerContainer.addView(headerText);
@@ -275,7 +277,9 @@ public class SenderSelectPopup extends ActionBarPopupWindow {
                     windowManager.addView(bulletinContainer, params);
                 }
 
-                Bulletin bulletin = Bulletin.make(bulletinContainer, new SelectSendAsPremiumHintBulletinLayout(context, parentFragment.themeDelegate, ()->{
+                final TLRPC.Chat chat = chatFull == null ? null : MessagesController.getInstance(currentAccount).getChat(chatFull.id);
+                final boolean toChannel = ChatObject.isChannelAndNotMegaGroup(chat);
+                Bulletin bulletin = Bulletin.make(bulletinContainer, new SelectSendAsPremiumHintBulletinLayout(context, parentFragment.themeDelegate, toChannel, () -> {
                     if (parentFragment != null) {
                         parentFragment.presentFragment(new PremiumPreviewFragment("select_sender"));
                         dismiss();

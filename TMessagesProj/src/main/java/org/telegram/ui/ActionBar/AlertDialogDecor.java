@@ -1,5 +1,7 @@
 package org.telegram.ui.ActionBar;
 
+import static org.telegram.messenger.AndroidUtilities.dp;
+
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.app.Activity;
@@ -9,6 +11,7 @@ import android.content.res.TypedArray;
 import android.graphics.Color;
 import android.graphics.Rect;
 import android.os.Build;
+import android.util.Log;
 import android.util.TypedValue;
 import android.view.ContextThemeWrapper;
 import android.view.Gravity;
@@ -25,6 +28,7 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.ui.Stories.recorder.KeyboardNotifier;
 
 public class AlertDialogDecor extends AlertDialog {
 
@@ -102,11 +106,8 @@ public class AlertDialogDecor extends AlertDialog {
         container.addView(dimView, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
 
         final FrameLayout contentWrapper = new FrameLayout(getContext());
-        contentWrapper.addView(contentView, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT));
-
-        FrameLayout.LayoutParams containerParams = new FrameLayout.LayoutParams(params.width, FrameLayout.LayoutParams.WRAP_CONTENT);
-        containerParams.gravity = Gravity.CENTER;
-        container.addView(contentWrapper, containerParams);
+        contentWrapper.addView(contentView, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER));
+        container.addView(contentWrapper, new FrameLayout.LayoutParams(params.width, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER));
 
         rootView = container;
         getDecorView().addView(rootView);
@@ -119,7 +120,7 @@ public class AlertDialogDecor extends AlertDialog {
             } else {
                 rect.set(insets.getStableInsetLeft(), insets.getStableInsetTop(), insets.getStableInsetRight(), insets.getStableInsetBottom());
             }
-            contentWrapper.setPadding(rect.left, rect.top, rect.right, rect.bottom);
+            contentWrapper.setPadding(rect.left, rect.top, rect.right, rect.bottom + AndroidUtilities.navigationBarHeight);
             contentWrapper.requestLayout();
             return insets;
         });

@@ -1,5 +1,8 @@
 package org.telegram.ui.Components;
 
+import static org.telegram.messenger.LocaleController.formatString;
+import static org.telegram.messenger.LocaleController.getString;
+
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.content.Context;
@@ -25,11 +28,13 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.collection.LongSparseArray;
 import androidx.core.content.ContextCompat;
 import androidx.core.graphics.ColorUtils;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ApplicationLoader;
+import org.telegram.messenger.DialogObject;
 import org.telegram.messenger.FileLog;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MessagesController;
@@ -44,6 +49,7 @@ import org.telegram.ui.ActionBar.BaseFragment;
 import org.telegram.ui.ActionBar.BottomSheet;
 import org.telegram.ui.ActionBar.Theme;
 import org.telegram.ui.Cells.DialogCell;
+import org.telegram.ui.ManageLinksActivity;
 
 import java.util.ArrayList;
 
@@ -109,7 +115,7 @@ public class LinkActionView extends LinearLayout {
         copyView.setContentDescription(LocaleController.getString("LinkActionCopy", R.string.LinkActionCopy));
         copyView.setPadding(AndroidUtilities.dp(8), 0, AndroidUtilities.dp(8), 0);
         copyView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
-        copyView.setTypeface(AndroidUtilities.getTypeface(AndroidUtilities.TYPEFACE_ROBOTO_MEDIUM));
+        copyView.setTypeface(AndroidUtilities.bold());
         copyView.setSingleLine(true);
         linearLayout.addView(copyView, LayoutHelper.createLinear(0, 42, 1f, 0, containerPadding, 0, 4, 0));
 
@@ -123,7 +129,7 @@ public class LinkActionView extends LinearLayout {
         shareView.setContentDescription(LocaleController.getString("LinkActionShare", R.string.LinkActionShare));
         shareView.setPadding(AndroidUtilities.dp(8), 0, AndroidUtilities.dp(8), 0);
         shareView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
-        shareView.setTypeface(AndroidUtilities.getTypeface(AndroidUtilities.TYPEFACE_ROBOTO_MEDIUM));
+        shareView.setTypeface(AndroidUtilities.bold());
         shareView.setSingleLine(true);
         linearLayout.addView(shareView, LayoutHelper.createLinear(0, 42, 1f, 4, 0, containerPadding, 0));
 
@@ -138,7 +144,7 @@ public class LinkActionView extends LinearLayout {
         removeView.setText(spannableStringBuilder);
         removeView.setPadding(AndroidUtilities.dp(8), 0, AndroidUtilities.dp(8), 0);
         removeView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
-        removeView.setTypeface(AndroidUtilities.getTypeface(AndroidUtilities.TYPEFACE_ROBOTO_MEDIUM));
+        removeView.setTypeface(AndroidUtilities.bold());
         removeView.setSingleLine(true);
         linearLayout.addView(removeView, LayoutHelper.createLinear(0, 42, 1f, containerPadding, 0, containerPadding, 0));
         removeView.setVisibility(View.GONE);
@@ -177,10 +183,23 @@ public class LinkActionView extends LinearLayout {
                 if (link == null) {
                     return;
                 }
-                Intent intent = new Intent(Intent.ACTION_SEND);
-                intent.setType("text/plain");
-                intent.putExtra(Intent.EXTRA_TEXT, link);
-                fragment.startActivityForResult(Intent.createChooser(intent, LocaleController.getString("InviteToGroupByLink", R.string.InviteToGroupByLink)), 500);
+                fragment.showDialog(new ShareAlert(getContext(), null, link, false, link, false, fragment.getResourceProvider()) {
+                    @Override
+                    protected void onSend(LongSparseArray<TLRPC.Dialog> dids, int count, TLRPC.TL_forumTopic topic) {
+                        final String str;
+                        if (dids != null && dids.size() == 1) {
+                            long did = dids.valueAt(0).id;
+                            if (did == 0 || did == UserConfig.getInstance(currentAccount).getClientUserId()) {
+                                str = getString(R.string.InvLinkToSavedMessages);
+                            } else {
+                                str = formatString(R.string.InvLinkToUser, MessagesController.getInstance(currentAccount).getPeerName(did, true));
+                            }
+                        } else {
+                            str = formatString(R.string.InvLinkToChats, LocaleController.formatPluralString("Chats", count));
+                        }
+                        showBulletin(R.raw.forward, AndroidUtilities.replaceTags(str));
+                    }
+                });
             } catch (Exception e) {
                 FileLog.e(e);
             }
@@ -333,6 +352,12 @@ public class LinkActionView extends LinearLayout {
         updateColors();
     }
 
+    public void showBulletin(int resId, CharSequence str) {
+        Bulletin b = BulletinFactory.of(fragment).createSimpleBulletin(resId, str);
+        b.hideAfterBottomSheet = false;
+        b.show(true);
+    }
+
     private void getPointOnScreen(FrameLayout frameLayout, FrameLayout finalContainer, float[] point) {
         float x = 0;
         float y = 0;
@@ -465,7 +490,7 @@ public class LinkActionView extends LinearLayout {
 
             countTextView = new TextView(context);
             countTextView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14);
-            countTextView.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
+            countTextView.setTypeface(AndroidUtilities.bold());
 
             linearLayout.addView(avatarsImageView, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.MATCH_PARENT));
             linearLayout.addView(countTextView, LayoutHelper.createLinear(LayoutHelper.WRAP_CONTENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER_VERTICAL));

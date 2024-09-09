@@ -6,10 +6,10 @@ uniform sampler2D u_BackgroundTexture;
 uniform float f_xOffset;
 uniform float f_alpha;
 uniform mat4 world;
-uniform vec3 modelViewVertex;
 
 varying vec3 vNormal;
 varying vec2 vUV;
+varying vec3 modelViewVertex;
 
 vec3 cameraPosition = vec3(0, 0, 100);
 
@@ -24,6 +24,7 @@ uniform vec3 normalSpecColor;
 uniform vec3 specColor;
 uniform vec2 resolution;
 uniform vec4 gradientPosition;
+uniform int modelIndex;
 
 void main() {
     vec3 vLightPosition2 = vec3(-400,400,400);
@@ -37,7 +38,7 @@ void main() {
     vec3 finalNormal = normalize(vNormalW + vTextureNormal);
 
     vec3 color = texture2D(u_Texture, vUV ).xyz;
-    vec3 viewDirectionW = normalize(cameraPosition - modelViewVertex);
+    vec3 viewDirectionW = normalize(cameraPosition);
 
     vec3 angleW = normalize(viewDirectionW + vLightPosition2);
     float specComp2 = max(0., dot(vNormalW, angleW));
@@ -50,7 +51,7 @@ void main() {
     float diffuse = max(dot(vNormalW, viewDirectionW), (1.0 - u_diffuse));
 
     float mixValue = distance(vUV,vec2(1,0));
-    vec4 gradientColorFinal = vec4(mix(gradientColor1,gradientColor2,mixValue), 1.0);
+    vec4 gradientColorFinal = vec4(mix(gradientColor1, gradientColor2, mixValue), 1.0);
 
     angleW = normalize(viewDirectionW + vLightPositionNormal);
     float normalSpecComp = max(0., dot(finalNormal, angleW));

@@ -29,7 +29,7 @@ public class QuoteHighlight extends Path {
 
     public final int id, start, end;
     public final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final Path path = new Path();
+    private final CornerPath path = new CornerPath();
 
     private final AnimatedFloat t;
 
@@ -42,6 +42,7 @@ public class QuoteHighlight extends Path {
         public float nextBottom;
     }
     private final ArrayList<Rect> rectangles = new ArrayList<>();
+    public final ArrayList<Integer> quotesToExpand = new ArrayList<>();
 
     private float currentOffsetX, currentOffsetY;
     private float minX;
@@ -79,7 +80,7 @@ public class QuoteHighlight extends Path {
             if (block.code && !block.quote) {
                 currentOffsetX += dp(10);
             }
-            currentOffsetY = block.textYOffset + block.padTop;
+            currentOffsetY = block.textYOffset(blocks) + block.padTop;
             minX = block.quote ? dp(10) : 0;
 
             isRtl = isRtl || AndroidUtilities.isRTL(block.textLayout.getText());
@@ -87,6 +88,10 @@ public class QuoteHighlight extends Path {
                 block.textLayout.getSelectionPath(blockStart, blockEnd, this);
             } else {
                 getSelectionPath(block.textLayout, blockStart, blockEnd);
+            }
+
+            if (block.quoteCollapse && block.collapsed()) {
+                quotesToExpand.add(block.index);
             }
         }
 
@@ -166,12 +171,17 @@ public class QuoteHighlight extends Path {
                 Path.Direction.CW
             );
         }
+        path.closeRects();
 
         int wasAlpha = paint.getAlpha();
         paint.setAlpha((int) (wasAlpha * alpha));
         canvas.drawPath(path, paint);
         paint.setAlpha(wasAlpha);
         canvas.restore();
+    }
+
+    public boolean done() {
+        return this.t.get() >= 1f;
     }
 
     @Override

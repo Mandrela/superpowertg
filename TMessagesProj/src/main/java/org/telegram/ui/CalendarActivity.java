@@ -68,7 +68,6 @@ import org.telegram.ui.Stories.StoryViewer;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.SortedSet;
 
 public class CalendarActivity extends BaseFragment implements NotificationCenter.NotificationCenterDelegate {
 
@@ -95,7 +94,7 @@ public class CalendarActivity extends BaseFragment implements NotificationCenter
     Paint blackoutPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
     private long dialogId;
-    private int topicId;
+    private long topicId;
     private boolean loading;
     private boolean checkEnterItems;
     private boolean inSelectionMode;
@@ -157,7 +156,7 @@ public class CalendarActivity extends BaseFragment implements NotificationCenter
     @Override
     public boolean onFragmentCreate() {
         dialogId = getArguments().getLong("dialog_id");
-        topicId = getArguments().getInt("topic_id");
+        topicId = getArguments().getLong("topic_id");
         calendarType = getArguments().getInt("type");
 
         if (calendarType == TYPE_PROFILE_STORIES) {
@@ -265,10 +264,10 @@ public class CalendarActivity extends BaseFragment implements NotificationCenter
 
         textPaint2.setTextSize(AndroidUtilities.dp(11));
         textPaint2.setTextAlign(Paint.Align.CENTER);
-        textPaint2.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
+        textPaint2.setTypeface(AndroidUtilities.bold());
 
         activeTextPaint.setTextSize(AndroidUtilities.dp(16));
-        activeTextPaint.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
+        activeTextPaint.setTypeface(AndroidUtilities.bold());
         activeTextPaint.setTextAlign(Paint.Align.CENTER);
 
         contentView = new FrameLayout(context) {
@@ -392,7 +391,7 @@ public class CalendarActivity extends BaseFragment implements NotificationCenter
             selectDaysButton = new TextView(context);
             selectDaysButton.setGravity(Gravity.CENTER);
             selectDaysButton.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 15);
-            selectDaysButton.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
+            selectDaysButton.setTypeface(AndroidUtilities.bold());
             selectDaysButton.setOnClickListener(view -> {
                 inSelectionMode = true;
                 updateTitle();
@@ -404,7 +403,7 @@ public class CalendarActivity extends BaseFragment implements NotificationCenter
             removeDaysButton = new TextView(context);
             removeDaysButton.setGravity(Gravity.CENTER);
             removeDaysButton.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 15);
-            removeDaysButton.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
+            removeDaysButton.setTypeface(AndroidUtilities.bold());
             removeDaysButton.setOnClickListener(view -> {
                 if (lastDaysSelected == 0) {
                     if (selectDaysHint == null) {
@@ -476,7 +475,13 @@ public class CalendarActivity extends BaseFragment implements NotificationCenter
             req.filter = new TLRPC.TL_inputMessagesFilterPhotoVideo();
         }
 
-        req.peer = MessagesController.getInstance(currentAccount).getInputPeer(dialogId);
+        req.peer = getMessagesController().getInputPeer(dialogId);
+        if (topicId != 0) {
+            if (dialogId == getUserConfig().getClientUserId()) {
+                req.flags |= 4;
+                req.saved_peer_id = getMessagesController().getInputPeer(topicId);
+            }
+        }
         req.offset_id = lastId;
 
         Calendar calendar = Calendar.getInstance();
@@ -779,7 +784,7 @@ public class CalendarActivity extends BaseFragment implements NotificationCenter
             }
             titleView.setBackground(Theme.createSelectorDrawable(Theme.getColor(Theme.key_listSelector), 2));
             titleView.setTextSize(15);
-            titleView.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
+            titleView.setTypeface(AndroidUtilities.bold());
             titleView.setGravity(Gravity.CENTER);
             titleView.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
             addView(titleView, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, 28, 0, 0, 12, 0, 4));

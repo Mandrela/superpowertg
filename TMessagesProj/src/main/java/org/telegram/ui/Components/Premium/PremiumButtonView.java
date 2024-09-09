@@ -27,10 +27,11 @@ import org.telegram.ui.Components.CircularProgressDrawable;
 import org.telegram.ui.Components.CounterView;
 import org.telegram.ui.Components.CubicBezierInterpolator;
 import org.telegram.ui.Components.LayoutHelper;
+import org.telegram.ui.Components.Loadable;
 import org.telegram.ui.Components.RLottieImageView;
 import org.telegram.ui.Components.voip.CellFlickerDrawable;
 
-public class PremiumButtonView extends FrameLayout {
+public class PremiumButtonView extends FrameLayout implements Loadable {
 
     private Paint paintOverlayPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
@@ -39,7 +40,6 @@ public class PremiumButtonView extends FrameLayout {
     public AnimatedTextView buttonTextView;
     public AnimatedTextView overlayTextView;
     private int radius;
-
     private boolean showOverlay;
     private float overlayProgress;
     public FrameLayout buttonLayout;
@@ -71,7 +71,7 @@ public class PremiumButtonView extends FrameLayout {
         flickerDrawable.repeatProgress = 4f;
         LinearLayout linearLayout = new LinearLayout(context);
         linearLayout.setOrientation(LinearLayout.HORIZONTAL);
-        buttonTextView = new AnimatedTextView(context) {
+        buttonTextView = new AnimatedTextView(context, true, true, true) {
             @Override
             protected void onDraw(Canvas canvas) {
                 if (loadingT > 0) {
@@ -102,7 +102,7 @@ public class PremiumButtonView extends FrameLayout {
         buttonTextView.setGravity(Gravity.CENTER);
         buttonTextView.setTextColor(Color.WHITE);
         buttonTextView.setTextSize(AndroidUtilities.dp(14));
-        buttonTextView.setTypeface(AndroidUtilities.getTypeface(AndroidUtilities.TYPEFACE_ROBOTO_MEDIUM));
+        buttonTextView.setTypeface(AndroidUtilities.bold());
 
         iconView = new RLottieImageView(context);
         iconView.setColorFilter(Color.WHITE);
@@ -148,7 +148,7 @@ public class PremiumButtonView extends FrameLayout {
             overlayTextView.setGravity(Gravity.CENTER);
             overlayTextView.setTextColor(Theme.getColor(Theme.key_featuredStickers_buttonText, resourcesProvider));
             overlayTextView.setTextSize(AndroidUtilities.dp(14));
-            overlayTextView.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
+            overlayTextView.setTypeface(AndroidUtilities.bold());
             overlayTextView.getDrawable().setAllowCancel(true);
             overlayTextView.setBackground(Theme.createSimpleSelectorRoundRectDrawable(AndroidUtilities.dp(8), Color.TRANSPARENT, ColorUtils.setAlphaComponent(Color.WHITE, 120)));
             addView(overlayTextView);
@@ -156,6 +156,10 @@ public class PremiumButtonView extends FrameLayout {
             paintOverlayPaint.setColor(Theme.getColor(Theme.key_featuredStickers_addButton, resourcesProvider));
             updateOverlayProgress();
         }
+    }
+
+    public boolean isShowOverlay() {
+        return showOverlay;
     }
 
     public RLottieImageView getIconView() {

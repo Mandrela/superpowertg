@@ -16,8 +16,8 @@ import org.telegram.messenger.AndroidUtilities;
 
 public class CircularProgressDrawable extends Drawable {
 
-    private float size = AndroidUtilities.dp(18);
-    private float thickness = AndroidUtilities.dp(2.25f);
+    public float size = AndroidUtilities.dp(18);
+    public float thickness = AndroidUtilities.dp(2.25f);
 
     public CircularProgressDrawable() {
         this(0xffffffff);
@@ -51,6 +51,8 @@ public class CircularProgressDrawable extends Drawable {
 
     private final Paint paint = new Paint(); {
         paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeCap(Paint.Cap.ROUND);
+        paint.setStrokeJoin(Paint.Join.ROUND);
     }
 
     private float angleOffset;
@@ -109,4 +111,5 @@ public class CircularProgressDrawable extends Drawable {
     public int getOpacity() {
         return PixelFormat.TRANSPARENT;
     }
+
 }

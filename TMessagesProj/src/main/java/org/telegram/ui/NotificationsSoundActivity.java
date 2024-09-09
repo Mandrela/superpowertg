@@ -115,7 +115,7 @@ public class NotificationsSoundActivity extends BaseFragment implements ChatAtta
 
     private final int tonesStreamType = AudioManager.STREAM_ALARM;
 
-    int topicId = 0;
+    long topicId = 0;
 
     public NotificationsSoundActivity(Bundle args) {
         this(args, null);
@@ -130,7 +130,7 @@ public class NotificationsSoundActivity extends BaseFragment implements ChatAtta
     public boolean onFragmentCreate() {
         if (getArguments() != null) {
             dialogId = getArguments().getLong("dialog_id", 0);
-            topicId = getArguments().getInt("topic_id", 0);
+            topicId = getArguments().getLong("topic_id", 0);
             currentType = getArguments().getInt("type", -1);
         }
         String prefPath;
@@ -152,6 +152,9 @@ public class NotificationsSoundActivity extends BaseFragment implements ChatAtta
             } else if (currentType == NotificationsController.TYPE_STORIES) {
                 prefPath = "StoriesSoundPath";
                 prefDocId = "StoriesSoundDocId";
+            } else if (currentType == NotificationsController.TYPE_REACTIONS_MESSAGES || currentType == NotificationsController.TYPE_REACTIONS_STORIES) {
+                prefPath = "ReactionSoundPath";
+                prefDocId = "ReactionSoundDocId";
             } else {
                 throw new RuntimeException("Unsupported type");
             }
@@ -294,7 +297,9 @@ public class NotificationsSoundActivity extends BaseFragment implements ChatAtta
             } else if (currentType == NotificationsController.TYPE_CHANNEL) {
                 actionBar.setTitle(LocaleController.getString("NotificationsSoundChannels", R.string.NotificationsSoundChannels));
             } else if (currentType == NotificationsController.TYPE_STORIES) {
-                actionBar.setTitle(LocaleController.getString("NotificationsSoundStories", R.string.NotificationsSoundStories));
+                actionBar.setTitle(LocaleController.getString(R.string.NotificationsSoundStories));
+            } else if (currentType == NotificationsController.TYPE_REACTIONS_STORIES || currentType == NotificationsController.TYPE_REACTIONS_MESSAGES) {
+                actionBar.setTitle(LocaleController.getString(R.string.NotificationsSoundReactions));
             }
         } else {
             avatarContainer = new ChatAvatarContainer(context, null, false, resourcesProvider);
@@ -324,7 +329,7 @@ public class NotificationsSoundActivity extends BaseFragment implements ChatAtta
 
         selectedTonesCountTextView = new NumberTextView(actionMode.getContext());
         selectedTonesCountTextView.setTextSize(18);
-        selectedTonesCountTextView.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
+        selectedTonesCountTextView.setTypeface(AndroidUtilities.bold());
         selectedTonesCountTextView.setTextColor(Theme.getColor(Theme.key_actionBarActionModeDefaultIcon, resourcesProvider));
         actionMode.addView(selectedTonesCountTextView, LayoutHelper.createLinear(0, LayoutHelper.MATCH_PARENT, 1.0f, 72, 0, 0, 0));
         selectedTonesCountTextView.setOnTouchListener((v, event) -> true);
@@ -578,7 +583,7 @@ public class NotificationsSoundActivity extends BaseFragment implements ChatAtta
     }
 
     @Override
-    public void didSelectFiles(ArrayList<String> files, String caption, ArrayList<MessageObject> fmessages, boolean notify, int scheduleDate) {
+    public void didSelectFiles(ArrayList<String> files, String caption, ArrayList<MessageObject> fmessages, boolean notify, int scheduleDate, long effectId, boolean invertMedia) {
         for (int i = 0; i < files.size(); i++) {
             getMediaDataController().uploadRingtone(files.get(i));
         }
@@ -634,7 +639,7 @@ public class NotificationsSoundActivity extends BaseFragment implements ChatAtta
                     view.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite, resourcesProvider));
                     break;
                 case 2:
-                    CreationTextCell creationTextCell = new CreationTextCell(context, resourcesProvider);
+                    CreationTextCell creationTextCell = new CreationTextCell(context, 70, resourcesProvider);
                     creationTextCell.startPadding = 61;
                     view = creationTextCell;
                     view.setBackgroundColor(Theme.getColor(Theme.key_windowBackgroundWhite, resourcesProvider));
@@ -885,6 +890,10 @@ public class NotificationsSoundActivity extends BaseFragment implements ChatAtta
                     prefName = "StoriesSound";
                     prefPath = "StoriesSoundPath";
                     prefDocId = "StoriesSoundDocId";
+                } else if (currentType == NotificationsController.TYPE_REACTIONS_STORIES || currentType == NotificationsController.TYPE_REACTIONS_MESSAGES) {
+                    prefName = "ReactionSound";
+                    prefPath = "ReactionSoundPath";
+                    prefDocId = "ReactionSoundDocId";
                 } else {
                     throw new RuntimeException("Unsupported type");
                 }

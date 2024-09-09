@@ -63,15 +63,15 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class DialogsSearchAdapter extends RecyclerListView.SelectionAdapter {
 
-    private final int VIEW_TYPE_PROFILE_CELL = 0;
-    private final int VIEW_TYPE_GRAY_SECTION = 1;
-    private final int VIEW_TYPE_DIALOG_CELL = 2;
-    private final int VIEW_TYPE_TOPIC_CELL = 3;
-    private final int VIEW_TYPE_LOADING = 4;
-    private final int VIEW_TYPE_HASHTAG_CELL = 5;
-    private final int VIEW_TYPE_CATEGORY_LIST = 6;
-    private final int VIEW_TYPE_ADD_BY_PHONE = 7;
-    private final int VIEW_TYPE_INVITE_CONTACT_CELL = 8;
+    public final static int VIEW_TYPE_PROFILE_CELL = 0;
+    public final static int VIEW_TYPE_GRAY_SECTION = 1;
+    public final int VIEW_TYPE_DIALOG_CELL = 2;
+    public final int VIEW_TYPE_TOPIC_CELL = 3;
+    public final int VIEW_TYPE_LOADING = 4;
+    public final int VIEW_TYPE_HASHTAG_CELL = 5;
+    public final int VIEW_TYPE_CATEGORY_LIST = 6;
+    public final int VIEW_TYPE_ADD_BY_PHONE = 7;
+    public final int VIEW_TYPE_INVITE_CONTACT_CELL = 8;
     private Context mContext;
     private Runnable searchRunnable;
     private Runnable searchRunnable2;
@@ -151,6 +151,7 @@ public class DialogsSearchAdapter extends RecyclerListView.SelectionAdapter {
     public interface DialogsSearchAdapterDelegate {
         void searchStateChanged(boolean searching, boolean animated);
         void didPressedOnSubDialog(long did);
+        void didPressedBlockedDialog(View view, long did);
         void needRemoveHint(long did);
         void needClearList();
         void runResultsEnterAnimation();
@@ -164,12 +165,14 @@ public class DialogsSearchAdapter extends RecyclerListView.SelectionAdapter {
         private final int currentAccount;
         private boolean drawChecked;
         private boolean forceDarkTheme;
+        private boolean showPremiumBlock;
         private Theme.ResourcesProvider resourcesProvider;
 
-        public CategoryAdapterRecycler(Context context, int account, boolean drawChecked, Theme.ResourcesProvider resourcesProvider) {
+        public CategoryAdapterRecycler(Context context, int account, boolean drawChecked, boolean showPremiumBlock, Theme.ResourcesProvider resourcesProvider) {
             this.drawChecked = drawChecked;
             mContext = context;
             currentAccount = account;
+            this.showPremiumBlock = showPremiumBlock;
             this.resourcesProvider = resourcesProvider;
         }
 
@@ -180,6 +183,9 @@ public class DialogsSearchAdapter extends RecyclerListView.SelectionAdapter {
         @Override
         public RecyclerView.ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
             HintDialogCell cell = new HintDialogCell(mContext, drawChecked, resourcesProvider);
+            if (showPremiumBlock) {
+                cell.showPremiumBlocked();
+            }
             cell.setLayoutParams(new RecyclerView.LayoutParams(AndroidUtilities.dp(80), AndroidUtilities.dp(86)));
             return new RecyclerListView.Holder(cell);
         }
@@ -465,7 +471,7 @@ public class DialogsSearchAdapter extends RecyclerListView.SelectionAdapter {
             ConnectionsManager.getInstance(currentAccount).cancelRequest(reqId, true);
             reqId = 0;
         }
-        if (TextUtils.isEmpty(query)) {
+        if (TextUtils.isEmpty(query) || delegate.getSearchForumDialogId() != 0) {
             filteredRecentQuery = null;
             searchResultMessages.clear();
             searchForumResultMessages.clear();
@@ -713,7 +719,7 @@ public class DialogsSearchAdapter extends RecyclerListView.SelectionAdapter {
                 }
 
                 if (!usersToLoad.isEmpty()) {
-                    MessagesStorage.getInstance(currentAccount).getUsersInternal(TextUtils.join(",", usersToLoad), users);
+                    MessagesStorage.getInstance(currentAccount).getUsersInternal(usersToLoad, users);
                     for (int a = 0; a < users.size(); a++) {
                         TLRPC.User user = users.get(a);
                         RecentSearchObject recentSearchObject = hashMap.get(user.id);
@@ -1101,7 +1107,7 @@ public class DialogsSearchAdapter extends RecyclerListView.SelectionAdapter {
                     if (searchId != lastSearchId) {
                         return;
                     }
-                    if (needMessagesSearch != 2 && dialogsType != DialogsActivity.DIALOGS_TYPE_GROUPS_ONLY && dialogsType != DialogsActivity.DIALOGS_TYPE_CHANNELS_ONLY) {
+                    if (needMessagesSearch != 2 && dialogsType != DialogsActivity.DIALOGS_TYPE_GROUPS_ONLY && dialogsType != DialogsActivity.DIALOGS_TYPE_CHANNELS_ONLY && delegate.getSearchForumDialogId() == 0) {
                         searchAdapterHelper.queryServerSearch(
                             query,
                             true,
@@ -1330,6 +1336,12 @@ public class DialogsSearchAdapter extends RecyclerListView.SelectionAdapter {
             }
             i -= contactsCount + 1;
         }
+        if (localCount + localServerCount > 0 && (getRecentItemsCount() > 0 || !searchTopics.isEmpty())) {
+            if (i == 0) {
+                return false;
+            }
+            i--;
+        }
         if (i >= 0 && i < localCount) {
             return false;
         }
@@ -1374,7 +1386,7 @@ public class DialogsSearchAdapter extends RecyclerListView.SelectionAdapter {
         View view;
         switch (viewType) {
             case VIEW_TYPE_PROFILE_CELL:
-                view = new ProfileSearchCell(mContext);
+                view = new ProfileSearchCell(mContext).showPremiumBlock(dialogsType == DialogsActivity.DIALOGS_TYPE_FORWARD);
                 break;
             case VIEW_TYPE_GRAY_SECTION:
                 view = new GraySectionCell(mContext);
@@ -1422,8 +1434,14 @@ public class DialogsSearchAdapter extends RecyclerListView.SelectionAdapter {
                 layoutManager.setOrientation(LinearLayoutManager.HORIZONTAL);
                 horizontalListView.setLayoutManager(layoutManager);
                 //horizontalListView.setDisallowInterceptTouchEvents(true);
-                horizontalListView.setAdapter(new CategoryAdapterRecycler(mContext, currentAccount, false, resourcesProvider));
+                horizontalListView.setAdapter(new CategoryAdapterRecycler(mContext, currentAccount, false, dialogsType == DialogsActivity.DIALOGS_TYPE_FORWARD, resourcesProvider));
                 horizontalListView.setOnItemClickListener((view1, position) -> {
+                    if (view1 instanceof HintDialogCell && ((HintDialogCell) view1).isBlocked()) {
+                        if (delegate != null) {
+                            delegate.didPressedBlockedDialog(view1, ((HintDialogCell) view1).getDialogId());
+                        }
+                        return;
+                    }
                     if (delegate != null) {
                         delegate.didPressedOnSubDialog((Long) view1.getTag());
                     }
@@ -1471,12 +1489,23 @@ public class DialogsSearchAdapter extends RecyclerListView.SelectionAdapter {
                 CharSequence username = null;
                 CharSequence name = null;
                 boolean isRecent = false;
+                boolean isGlobal = isGlobalSearch(position);
                 String un = null;
                 Object obj = getItem(position);
 
                 if (obj instanceof TLRPC.User) {
                     user = (TLRPC.User) obj;
                     un = UserObject.getPublicUsername(user);
+                    if (un != null && lastSearchText != null && !un.toLowerCase().contains(lastSearchText.toLowerCase())) {
+                        if (user.usernames != null) {
+                            for (int i = 0; i < user.usernames.size(); ++i) {
+                                TLRPC.TL_username u = user.usernames.get(i);
+                                if (u != null && u.active && u.username.toLowerCase().contains(lastSearchText.toLowerCase())) {
+                                    un = u.username;
+                                }
+                            }
+                        }
+                    }
                 } else if (obj instanceof TLRPC.Chat) {
                     chat = MessagesController.getInstance(currentAccount).getChat(((TLRPC.Chat) obj).id);
                     if (chat == null) {
@@ -1545,7 +1574,7 @@ public class DialogsSearchAdapter extends RecyclerListView.SelectionAdapter {
                             spannableStringBuilder.setSpan(new ForegroundColorSpanThemable(Theme.key_windowBackgroundWhiteBlueText4), index, index + foundUserName.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
                             name = spannableStringBuilder;
                         }
-                        if (un != null && user == null) {
+                        if (un != null && (user == null || isGlobal)) {
                             if (foundUserName.startsWith("@")) {
                                 foundUserName = foundUserName.substring(1);
                             }

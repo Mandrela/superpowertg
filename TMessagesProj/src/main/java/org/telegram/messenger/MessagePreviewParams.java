@@ -213,7 +213,7 @@ public class MessagePreviewParams {
             replyMessageObject = null;
             replyQuote = null;
         }
-        hasSecretMessages = replyMessageObject != null && (replyMessageObject.isVoiceOnce() || replyMessageObject.isRoundOnce());
+        hasSecretMessages = replyMessageObject != null && (replyMessageObject.isVoiceOnce() || replyMessageObject.isRoundOnce() || replyMessageObject.type == MessageObject.TYPE_GIFT_STARS);
         if (replyMessageObject != null || replyQuote != null) {
             if (group != null) {
                 replyMessage = new Messages(null, 1, group.messages, dialogId, null);
@@ -348,7 +348,7 @@ public class MessagePreviewParams {
             try {
                 Spannable spanned = SpannableString.valueOf(text);
                 try {
-                    AndroidUtilities.addLinks(spanned, Linkify.WEB_URLS);
+                    AndroidUtilities.addLinksSafe(spanned, Linkify.WEB_URLS, false, true);
                 } catch (Exception e2) {
                     FileLog.e(e2);
                 }

@@ -226,7 +226,7 @@ public class ReassignBoostBottomSheet extends BottomSheetWithRecyclerListView {
     }
 
     @Override
-    protected RecyclerListView.SelectionAdapter createAdapter() {
+    protected RecyclerListView.SelectionAdapter createAdapter(RecyclerListView listView) {
         return new RecyclerListView.SelectionAdapter() {
 
             @Override
@@ -252,7 +252,7 @@ public class ReassignBoostBottomSheet extends BottomSheetWithRecyclerListView {
                         view = new HeaderCell(context, 22);
                         break;
                     case HOLDER_TYPE_USER:
-                        view = new SelectorUserCell(context, resourcesProvider, true);
+                        view = new SelectorUserCell(context, true, resourcesProvider, true);
                         break;
                     default:
                         view = new View(context);
@@ -330,7 +330,7 @@ public class ReassignBoostBottomSheet extends BottomSheetWithRecyclerListView {
             addView(avatarsContainer, LayoutHelper.createLinear(LayoutHelper.MATCH_PARENT, 70, 0, 15, 0, 0));
 
             TextView title = new TextView(context);
-            title.setTypeface(AndroidUtilities.getTypeface(AndroidUtilities.TYPEFACE_ROBOTO_MEDIUM));
+            title.setTypeface(AndroidUtilities.bold());
             title.setText(LocaleController.getString("BoostingReassignBoost", R.string.BoostingReassignBoost));
             title.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 20);
             title.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));

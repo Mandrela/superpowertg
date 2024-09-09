@@ -1,12 +1,9 @@
 package org.telegram.ui.Cells;
 
 import android.graphics.Canvas;
-import android.graphics.Paint;
-import android.graphics.Rect;
 import android.graphics.RectF;
 import android.text.Layout;
 import android.text.Spannable;
-import android.text.SpannableString;
 import android.text.SpannableStringBuilder;
 import android.text.StaticLayout;
 import android.text.TextPaint;
@@ -14,6 +11,7 @@ import android.text.TextUtils;
 
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.LocaleController;
+import org.telegram.messenger.MessageObject;
 import org.telegram.messenger.MessagesController;
 import org.telegram.messenger.R;
 import org.telegram.tgnet.TLRPC;
@@ -36,7 +34,17 @@ public class ExpiredStoryView {
 
     public void measure(ChatMessageCell parent) {
         CharSequence title = StoriesUtilities.createExpiredStoryString();
-        TLRPC.TL_messageMediaStory mediaStory = (TLRPC.TL_messageMediaStory) parent.getMessageObject().messageOwner.media;
+        MessageObject messageObject = parent.getMessageObject();
+        TLRPC.TL_messageMediaStory mediaStory;
+        if (messageObject != null && messageObject.messageOwner != null && messageObject.messageOwner.media instanceof TLRPC.TL_messageMediaStory) {
+            mediaStory = (TLRPC.TL_messageMediaStory) messageObject.messageOwner.media;
+        } else {
+            verticalPadding = AndroidUtilities.dp(4);
+            horizontalPadding = AndroidUtilities.dp(12);
+            height = 0;
+            width = 0;
+            return;
+        }
         TLRPC.User user = MessagesController.getInstance(parent.currentAccount).getUser(mediaStory.user_id);
         String fromName = user == null ? "DELETED" : user.first_name;
         int forwardedNameWidth;
@@ -57,7 +65,7 @@ public class ExpiredStoryView {
         CharSequence subtitle = String.format(fromString, fromName);
         if (idx >= 0) {
             SpannableStringBuilder spannableStringBuilder = new SpannableStringBuilder(subtitle);
-            spannableStringBuilder.setSpan(new TypefaceSpan(AndroidUtilities.getTypeface("fonts/rmedium.ttf")), idx, idx + fromName.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+            spannableStringBuilder.setSpan(new TypefaceSpan(AndroidUtilities.bold()), idx, idx + fromName.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
             subtitle = spannableStringBuilder;
         }
         TextPaint titlePaint = Theme.chat_replyTextPaint;
@@ -119,9 +127,13 @@ public class ExpiredStoryView {
 
         canvas.save();
         canvas.translate(textX, textY);
-        titleLayout.draw(canvas);
-        canvas.translate(0, titleLayout.getHeight() + AndroidUtilities.dp(2));
-        subtitleLayout.draw(canvas);
+        if (titleLayout != null) {
+            titleLayout.draw(canvas);
+            canvas.translate(0, titleLayout.getHeight() + AndroidUtilities.dp(2));
+        }
+        if (subtitleLayout != null) {
+            subtitleLayout.draw(canvas);
+        }
         canvas.restore();
     }
 }

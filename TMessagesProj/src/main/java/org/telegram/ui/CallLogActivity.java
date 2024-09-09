@@ -149,7 +149,7 @@ public class CallLogActivity extends BaseFragment implements NotificationCenter.
 			emptyTextView1.setTextColor(Theme.getColor(Theme.key_windowBackgroundWhiteBlackText));
 			emptyTextView1.setText(LocaleController.getString("NoRecentCalls", R.string.NoRecentCalls));
 			emptyTextView1.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 20);
-			emptyTextView1.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
+			emptyTextView1.setTypeface(AndroidUtilities.bold());
 			emptyTextView1.setGravity(Gravity.CENTER);
 			addView(emptyTextView1, LayoutHelper.createFrame(LayoutHelper.MATCH_PARENT, LayoutHelper.WRAP_CONTENT, Gravity.CENTER, 17, 40, 17, 0));
 
@@ -615,7 +615,7 @@ public class CallLogActivity extends BaseFragment implements NotificationCenter.
 				otherItem.setVisibility(View.GONE);
 				listViewAdapter.notifyDataSetChanged();
 			} else {
-				getMessagesController().deleteMessages(new ArrayList<>(selectedIds), null, null, 0, checks[0], false);
+				getMessagesController().deleteMessages(new ArrayList<>(selectedIds), null, null, 0, 0, checks[0], 0);
 			}
 			hideActionMode(false);
 		});
@@ -676,7 +676,7 @@ public class CallLogActivity extends BaseFragment implements NotificationCenter.
 
 		selectedDialogsCountTextView = new NumberTextView(actionMode.getContext());
 		selectedDialogsCountTextView.setTextSize(18);
-		selectedDialogsCountTextView.setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
+		selectedDialogsCountTextView.setTypeface(AndroidUtilities.bold());
 		selectedDialogsCountTextView.setTextColor(Theme.getColor(Theme.key_actionBarActionModeDefaultIcon));
 		actionMode.addView(selectedDialogsCountTextView, LayoutHelper.createLinear(0, LayoutHelper.MATCH_PARENT, 1.0f, 72, 0, 0, 0));
 		selectedDialogsCountTextView.setOnTouchListener((v, event) -> true);

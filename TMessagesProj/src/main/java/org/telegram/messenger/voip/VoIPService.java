@@ -780,6 +780,7 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 			return START_NOT_STICKY;
 		}
 		sharedInstance = this;
+		FileLog.e("(4) set sharedInstance = this");
 		synchronized (sync) {
 			if (setModeRunnable != null) {
 				Utilities.globalQueue.cancelRunnable(setModeRunnable);
@@ -831,6 +832,7 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 				setAudioOutput(0);
 			}
 			callIShouldHavePutIntoIntent = null;
+			FileLog.e("(3) set VoIPService.callIShouldHavePutIntoIntent = null");
 			if (USE_CONNECTION_SERVICE) {
 				acknowledgeCall(false);
 				showNotification();
@@ -1000,6 +1002,7 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 							req1.peer.access_hash = privateCall.access_hash;
 							req1.peer.id = privateCall.id;
 							req1.reason = new TLRPC.TL_phoneCallDiscardReasonMissed();
+							FileLog.e("discardCall " + req1.reason);
 							ConnectionsManager.getInstance(currentAccount).sendRequest(req1, (response1, error1) -> {
 								if (BuildVars.LOGS_ENABLED) {
 									if (error1 != null) {
@@ -1037,6 +1040,13 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 	}
 
 	private void acknowledgeCall(final boolean startRinging) {
+		if (privateCall == null) {
+			if (BuildVars.LOGS_ENABLED) {
+				FileLog.w("Call is null, wtf");
+			}
+			stopSelf();
+			return;
+		}
 		if (privateCall instanceof TLRPC.TL_phoneCallDiscarded) {
 			if (BuildVars.LOGS_ENABLED) {
 				FileLog.w("Call " + privateCall.id + " was discarded before the service started, stopping");
@@ -3029,7 +3039,8 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 				} else {
 					ringtonePlayer.setAudioStreamType(AudioManager.STREAM_RING);
 					if (!USE_CONNECTION_SERVICE) {
-						am.requestAudioFocus(this, AudioManager.STREAM_RING, AudioManager.AUDIOFOCUS_GAIN);
+						int focusResult = am.requestAudioFocus(this, AudioManager.STREAM_RING, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT);
+						hasAudioFocus = focusResult == AudioManager.AUDIOFOCUS_REQUEST_GRANTED;
 					}
 				}
 				try {
@@ -3119,6 +3130,7 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 		}
 		super.onDestroy();
 		sharedInstance = null;
+		FileLog.e("(5) set sharedInstance = null");
 		Arrays.fill(mySource, 0);
 		cancelGroupCheckShortPoll();
 		AndroidUtilities.runOnUIThread(() -> NotificationCenter.getGlobalInstance().postNotificationName(NotificationCenter.didEndCall));
@@ -3156,8 +3168,8 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 			}
 		}
 		cpuWakelock.release();
+		AudioManager am = (AudioManager) getSystemService(AUDIO_SERVICE);
 		if (!playingSound) {
-			AudioManager am = (AudioManager) getSystemService(AUDIO_SERVICE);
 			VoipAudioManager vam = VoipAudioManager.get();
 			if (!USE_CONNECTION_SERVICE) {
 				if (isBtHeadsetConnected || bluetoothScoActive || bluetoothScoConnecting) {
@@ -3194,14 +3206,15 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 			if (audioDeviceCallback != null) {
 				am.unregisterAudioDeviceCallback(audioDeviceCallback);
 			}
-			if (hasAudioFocus) {
-				am.abandonAudioFocus(this);
-			}
+
 			Utilities.globalQueue.postRunnable(() -> {
 				if (soundPool != null) {
 					soundPool.release();
 				}
 			});
+		}
+		if (hasAudioFocus) {
+			am.abandonAudioFocus(this);
 		}
 
 		if (USE_CONNECTION_SERVICE) {
@@ -3383,6 +3396,7 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 				req.reason = new TLRPC.TL_phoneCallDiscardReasonHangup();
 				break;
 		}
+		FileLog.e("discardCall " + req.reason);
 		ConnectionsManager.getInstance(currentAccount).sendRequest(req, (response, error) -> {
 			if (error != null) {
 				if (BuildVars.LOGS_ENABLED) {
@@ -3574,7 +3588,7 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 		}
 		try {
 			AudioManager am = (AudioManager) getSystemService(AUDIO_SERVICE);
-			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1 && am.getProperty(AudioManager.PROPERTY_OUTPUT_FRAMES_PER_BUFFER) != null) {
+			if (am.getProperty(AudioManager.PROPERTY_OUTPUT_FRAMES_PER_BUFFER) != null) {
 				int outFramesPerBuffer = Integer.parseInt(am.getProperty(AudioManager.PROPERTY_OUTPUT_FRAMES_PER_BUFFER));
 				Instance.setBufferSize(outFramesPerBuffer);
 			} else {
@@ -3763,7 +3777,8 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 					FileLog.e(e);
 				}
 				AndroidUtilities.runOnUIThread(() -> {
-					am.requestAudioFocus(VoIPService.this, AudioManager.STREAM_VOICE_CALL, AudioManager.AUDIOFOCUS_GAIN);
+					int focusResult = am.requestAudioFocus(VoIPService.this, AudioManager.STREAM_VOICE_CALL, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT);
+					hasAudioFocus = focusResult == AudioManager.AUDIOFOCUS_REQUEST_GRANTED;
 					final VoipAudioManager vam = VoipAudioManager.get();
 					if (isBluetoothHeadsetConnected() && hasEarpiece()) {
 						switch (audioRouteToSet) {
@@ -4241,6 +4256,7 @@ public class VoIPService extends Service implements SensorEventListener, AudioMa
 			req.duration = (int) (getCallDuration() / 1000);
 			req.connection_id = tgVoip[CAPTURE_DEVICE_CAMERA] != null ? tgVoip[CAPTURE_DEVICE_CAMERA].getPreferredRelayId() : 0;
 			req.reason = new TLRPC.TL_phoneCallDiscardReasonDisconnect();
+			FileLog.e("discardCall " + req.reason);
 			ConnectionsManager.getInstance(currentAccount).sendRequest(req, (response, error1) -> {
 				if (error1 != null) {
 					if (BuildVars.LOGS_ENABLED) {

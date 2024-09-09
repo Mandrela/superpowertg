@@ -14,7 +14,6 @@ import android.graphics.RectF;
 import android.os.Build;
 import android.text.SpannableStringBuilder;
 import android.text.TextUtils;
-import android.text.method.LinkMovementMethod;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
@@ -28,6 +27,7 @@ import androidx.annotation.NonNull;
 import androidx.core.graphics.ColorUtils;
 
 import org.telegram.messenger.AndroidUtilities;
+import org.telegram.messenger.ChatObject;
 import org.telegram.messenger.DialogObject;
 import org.telegram.messenger.Emoji;
 import org.telegram.messenger.LocaleController;
@@ -203,12 +203,13 @@ public class TableCell extends FrameLayout {
     public void setData(TLRPC.TL_payments_checkedGiftCode giftCode, Utilities.Callback<TLObject> onObjectClicked) {
         this.giftCode = giftCode;
         Date date = new Date(giftCode.date * 1000L);
-        String monthTxt = LocaleController.getInstance().formatterYear.format(date);
-        String timeTxt = LocaleController.getInstance().formatterDay.format(date);
+        String monthTxt = LocaleController.getInstance().getFormatterYear().format(date);
+        String timeTxt = LocaleController.getInstance().getFormatterDay().format(date);
 
         dateTextView.setText(LocaleController.formatString("formatDateAtTime", R.string.formatDateAtTime, monthTxt, timeTxt));
         reasonTextView.setTextColor(Theme.getColor(giftCode.via_giveaway ? Theme.key_dialogTextBlue : Theme.key_dialogTextBlack, resourcesProvider));
-
+        TLRPC.Chat fromChat = MessagesController.getInstance(UserConfig.selectedAccount).getChat(-DialogObject.getPeerDialogId(giftCode.from_id));
+        boolean isChannel = ChatObject.isChannelAndNotMegaGroup(fromChat);
         if (giftCode.via_giveaway) {
             SpannableStringBuilder builder = new SpannableStringBuilder();
             builder.append("**");
@@ -218,14 +219,13 @@ public class TableCell extends FrameLayout {
             reasonTextView.setText(builder);
             reasonTextView.setOnClickListener(v -> onObjectClicked.run(giftCode));
         } else {
-            reasonTextView.setText(LocaleController.getString("BoostingYouWereSelected", R.string.BoostingYouWereSelected));
+            reasonTextView.setText(LocaleController.getString(isChannel ? R.string.BoostingYouWereSelected : R.string.BoostingYouWereSelectedGroup));
             reasonTextView.setOnClickListener(null);
         }
 
         String monthsStr = giftCode.months == 12 ? LocaleController.formatPluralString("Years", 1) : LocaleController.formatPluralString("Months", giftCode.months);
         giftTextView.setText(LocaleController.formatString("BoostingTelegramPremiumFor", R.string.BoostingTelegramPremiumFor, monthsStr));
 
-        TLRPC.Chat fromChat = MessagesController.getInstance(UserConfig.selectedAccount).getChat(-DialogObject.getPeerDialogId(giftCode.from_id));
         if (fromChat != null) {
             SpannableStringBuilder builder = new SpannableStringBuilder();
             builder.append("**");
@@ -293,7 +293,7 @@ public class TableCell extends FrameLayout {
             textView.setGravity(LocaleController.isRTL ? Gravity.RIGHT : Gravity.LEFT);
         }
         if (text != null) {
-            textView.setTypeface(AndroidUtilities.getTypeface(AndroidUtilities.TYPEFACE_ROBOTO_MEDIUM));
+            textView.setTypeface(AndroidUtilities.bold());
             textView.setText(text);
             textView.setBackgroundColor(Theme.getColor(Theme.key_graySection, resourcesProvider));
             textView.setPadding(AndroidUtilities.dp(LocaleController.isRTL ? 32 : 12), AndroidUtilities.dp(11), AndroidUtilities.dp(LocaleController.isRTL ? 12 : 32), AndroidUtilities.dp(11));

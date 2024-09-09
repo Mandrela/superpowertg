@@ -14,7 +14,6 @@ import android.graphics.ColorFilter;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffColorFilter;
 import android.graphics.drawable.Drawable;
-import android.text.Layout;
 import android.text.SpannableStringBuilder;
 import android.text.Spanned;
 import android.text.TextPaint;
@@ -36,7 +35,6 @@ import androidx.recyclerview.widget.RecyclerView;
 import org.telegram.messenger.AndroidUtilities;
 import org.telegram.messenger.ContactsController;
 import org.telegram.messenger.Emoji;
-import org.telegram.messenger.FileLog;
 import org.telegram.messenger.LocaleController;
 import org.telegram.messenger.MediaDataController;
 import org.telegram.messenger.NotificationCenter;
@@ -131,7 +129,7 @@ public class PremiumPreviewBottomSheet extends BottomSheetWithRecyclerListView i
         this.currentAccount = currentAccount;
         this.giftTier = gift;
         dummyCell = new PremiumFeatureCell(getContext());
-        PremiumPreviewFragment.fillPremiumFeaturesList(premiumFeatures, currentAccount);
+        PremiumPreviewFragment.fillPremiumFeaturesList(premiumFeatures, currentAccount, false);
 
         if (giftTier != null || UserConfig.getInstance(currentAccount).isPremium()) {
             buttonContainer.setVisibility(View.GONE);
@@ -198,7 +196,8 @@ public class PremiumPreviewBottomSheet extends BottomSheetWithRecyclerListView i
         return this;
     }
 
-    private void showDialog(Dialog dialog) {
+    @Override
+    public boolean showDialog(Dialog dialog) {
         if (iconTextureView != null) {
             iconTextureView.setDialogVisible(true);
         }
@@ -210,6 +209,7 @@ public class PremiumPreviewBottomSheet extends BottomSheetWithRecyclerListView i
             starParticlesView.setPaused(false);
         });
         dialog.show();
+        return true;
     }
 
     @Override
@@ -419,7 +419,7 @@ public class PremiumPreviewBottomSheet extends BottomSheetWithRecyclerListView i
     }
 
     @Override
-    protected RecyclerListView.SelectionAdapter createAdapter() {
+    protected RecyclerListView.SelectionAdapter createAdapter(RecyclerListView listView) {
         return new Adapter();
     }
 
@@ -493,38 +493,14 @@ public class PremiumPreviewBottomSheet extends BottomSheetWithRecyclerListView i
                         titleView = new LinkSpanDrawable.LinksTextView[2];
                         for (int a = 0; a < 2; ++a) {
                             titleView[a] = new LinkSpanDrawable.LinksTextView(context, resourcesProvider) {
-                                private Layout lastLayout;
-                                AnimatedEmojiSpan.EmojiGroupedSpans stack;
-
                                 @Override
-                                protected void onDetachedFromWindow() {
-                                    super.onDetachedFromWindow();
-                                    AnimatedEmojiSpan.release(this, stack);
-                                    lastLayout = null;
-                                }
-
-                                @Override
-                                protected void dispatchDraw(Canvas canvas) {
-                                    super.dispatchDraw(canvas);
-                                    if (lastLayout != getLayout()) {
-                                        stack = AnimatedEmojiSpan.update(AnimatedEmojiDrawable.CACHE_TYPE_ALERT_PREVIEW, this, stack, lastLayout = getLayout());
-                                    }
-                                    AnimatedEmojiSpan.drawAnimatedEmojis(canvas, getLayout(), stack, 0, null, 0, 0, 0, 1f, colorFilter);
-                                }
-
-                                @Override
-                                protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-                                    super.onMeasure(widthMeasureSpec, MeasureSpec.makeMeasureSpec(99999999, MeasureSpec.AT_MOST));
-                                }
-
-                                @Override
-                                public int overrideColor() {
-                                    return accentColor != null ? Theme.multAlpha(accentColor, .10f) : super.overrideColor();
+                                protected int emojiCacheType() {
+                                    return AnimatedEmojiDrawable.CACHE_TYPE_ALERT_PREVIEW;
                                 }
                             };
                             titleView[a].setVisibility(a == 0 ? View.VISIBLE : View.GONE);
                             titleView[a].setTextSize(TypedValue.COMPLEX_UNIT_DIP, 16);
-                            titleView[a].setTypeface(AndroidUtilities.getTypeface("fonts/rmedium.ttf"));
+                            titleView[a].setTypeface(AndroidUtilities.bold());
                             titleView[a].setGravity(Gravity.CENTER_HORIZONTAL);
                             titleView[a].setTextColor(getThemedColor(Theme.key_windowBackgroundWhiteBlackText));
                             titleView[a].setLinkTextColor(getThemedColor(Theme.key_windowBackgroundWhiteLinkText));
