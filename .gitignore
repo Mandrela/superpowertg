@@ -1,6 +1,10 @@
 .idea/
 .gradle/
+.cxx/
 build/
 obj/
 *.iml
+google-services.json
+bundleAfat*/
 local.properties
+*.keystore
