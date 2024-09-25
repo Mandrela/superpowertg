@@ -1,0 +1,25 @@
+image: runmymind/docker-android-sdk:ubuntu-standalone-20240925
+stages:
+  - build
+
+assembleAfatRelease:
+  stage: build
+  when: manual
+  cache:
+    paths:
+      - ./.gradle
+      - ./TMessagesProj/build
+      - ./TMessagesProj/.cxx
+      - ./TMessagesProj_App/build
+  variables:
+    SECURE_FILES_DOWNLOAD_PATH: './TMessagesProj/config'
+  script:
+    - curl -s https://gitlab.com/gitlab-org/incubation-engineering/mobile-devops/download-secure-files/-/raw/main/installer | bash
+    - mv ./TMessagesProj/config/local.properties .
+    - mv ./TMessagesProj/config/google-services.json ./TMessagesProj
+    - cp ./TMessagesProj/google-services.json ./TMessagesProj_App
+    - ./gradlew TMessagesProj_App:assembleAfatRelease
+    - mv ./TMessagesProj_App/build/outputs/apk/afat/release/app.apk ./TMessagesProj_App/build/outputs/apk/afat/release/Telegram_v$(cat gradle.properties | grep APP_VERSION_NAME | grep -oP "\d.*").apk
+  artifacts:
+    paths:
+      - './TMessagesProj_App/build/outputs/apk/afat/release/*.apk'
