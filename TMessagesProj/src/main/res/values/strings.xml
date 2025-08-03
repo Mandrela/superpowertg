@@ -2099,6 +2099,10 @@
     <string name="AddAnExplanationInfo">Users will see this text after choosing the wrong answer, good for educational purposes.</string>
     <string name="EnableAnimations">Enable Animations</string>
     <string name="ChatSettings">Chat Settings</string>
+	<string name="SUPERSETTINGS">SUPER ULTRA PUPER POWERS</string>
+	<string name="HAHAHA">A bit of my powers to you, kid</string>
+	<string name="TURNTHEMDOWN">Shadow read</string>
+	<string name="TURNTHEMDOWNINFO">Prohibits you from reading the massages.</string>
     <string name="Devices">Devices</string>
     <string name="SettingsHelp">Help</string>
     <string name="SettingsDebug">Debug</string>

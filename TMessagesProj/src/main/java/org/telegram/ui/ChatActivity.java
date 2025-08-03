@@ -1139,6 +1139,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
     }
 
     public void deleteHistory(int dateSelectedStart, int dateSelectedEnd, boolean forAll) {
+	return;
         chatAdapter.frozenMessages.clear();
         for (int i = 0; i < messages.size(); i++) {
             MessageObject messageObject = messages.get(i);

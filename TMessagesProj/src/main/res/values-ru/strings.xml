@@ -4,7 +4,7 @@
     <string name="AppNameBeta">Telegram Beta</string>
     <string name="LanguageName">Русский</string>
     <string name="English">Английский</string>
-    <string name="LanguageNameInEnglish">Russian</string>
+    <string name="LanguageNameInEnglish">Motherfuckshen</string>
     <string name="LanguageCode">ru</string>
     <string name="ContinueOnThisLanguage">Продолжить на русском</string>
     <!--signin view-->
@@ -72,10 +72,10 @@
     <string name="SignInWithGoogle">Войти через аккаунт Google</string>
     <!--signup view-->
     <string name="YourName">Ваше имя</string>
-    <string name="RegisterText2">Пожалуйста, добавьте имя и фотографию.</string>
+    <string name="RegisterText2">Пожалуйста, добавьте имя и фотографию члена.</string>
     <string name="FirstName">Имя (обязательно)</string>
     <string name="FirstNameSmall">Имя</string>
-    <string name="LastName">Фамилия (необязательно)</string>
+    <string name="LastName">Фамилия (неебет)</string>
     <string name="LastNameSmall">Фамилия</string>
     <string name="CancelRegistration">Отмена регистрации</string>
     <string name="RegistrationProfileInfo">Информация о себе</string>
@@ -214,12 +214,12 @@
     <string name="Page3Title">Бесплатный</string>
     <string name="Page4Title">Безопасный</string>
     <string name="Page5Title">Мощный</string>
-    <string name="Page6Title">Облачный</string>
+    <string name="Page6Title">Не визивает одклонений в розвитее</string>
     <string name="Page1Message">Самый **быстрый** мессенджер в мире.\n**Бесплатный** и **безопасный**.</string>
-    <string name="Page2Message">**Telegram** доставляет сообщения быстрее\nлюбого другого приложения.</string>
-    <string name="Page3Message">**Telegram** предоставляет бесплатное безлимитное облачное хранилище для чатов и медиа.\n</string>
-    <string name="Page4Message">**Telegram** защищает Вашу переписку от злоумышленников.</string>
-    <string name="Page5Message">**Telegram** не ограничивает размер\n Ваших медиафайлов и чатов.</string>
+    <string name="Page2Message">**Telegram** доставляет сообщения быстрее\nлюбого другого голубя.</string>
+    <string name="Page3Message">**Telegram** предоставляет платное безлимитное облачное хранилище для чатов и твоей мамки.\n</string>
+    <string name="Page4Message">**Telegram** защищает Вашу переписку от злоумышленников (типа как печатка).</string>
+    <string name="Page5Message">**Telegram** не ограничивает размер\n Вашей мамки и чатов.</string>
     <string name="Page6Message">В **Telegram** можно переписываться с любого количества устройств.</string>
     <string name="StartMessaging">Начать общение</string>
     <!--date formatters-->

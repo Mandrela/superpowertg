@@ -1405,6 +1405,7 @@ public class MessagesController extends BaseController implements NotificationCe
         long time = System.currentTimeMillis();
 
         remoteConfigLoaded = mainPreferences.getBoolean("remoteConfigLoaded", false);
+	turndown = mainPreferences.getBoolean("turndown", false);
         secretWebpagePreview = mainPreferences.getInt("secretWebpage2", 2);
         maxGroupCount = mainPreferences.getInt("maxGroupCount", 200);
         maxMegagroupCount = mainPreferences.getInt("maxMegagroupCount", 10000);
@@ -13048,7 +13049,7 @@ public class MessagesController extends BaseController implements NotificationCe
         }
     }
 
-    public void markMessageAsRead(long dialogId, long randomId, int ttl) {
+    public void markMessageAsRead(long dialogId, long randomId, int ttl) { // SUPERPOWERMARK
         if (randomId == 0 || dialogId == 0 || ttl <= 0 && ttl != Integer.MIN_VALUE) {
             return;
         }
@@ -13061,7 +13062,7 @@ public class MessagesController extends BaseController implements NotificationCe
         }
         ArrayList<Long> randomIds = new ArrayList<>();
         randomIds.add(randomId);
-        getSecretChatHelper().sendMessagesReadMessage(chat, randomIds, null);
+        //getSecretChatHelper().sendMessagesReadMessage(chat, randomIds, null);
         if (ttl > 0) {
             int time = getConnectionsManager().getCurrentTime();
             getMessagesStorage().createTaskForSecretChat(chat.id, time, time, 0, randomIds);
@@ -18831,7 +18832,7 @@ public class MessagesController extends BaseController implements NotificationCe
         LongSparseIntArray clearHistoryMessagesFinal = clearHistoryMessages;
         getMessagesStorage().getStorageQueue().postRunnable(() -> AndroidUtilities.runOnUIThread(() -> {
             int updateMask = 0;
-            if (markAsReadMessagesInboxFinal != null || markAsReadMessagesOutboxFinal != null) {
+            if ((markAsReadMessagesInboxFinal != null || markAsReadMessagesOutboxFinal != null) && 0) { // TEST && 0
                 getNotificationCenter().postNotificationName(NotificationCenter.messagesRead, markAsReadMessagesInboxFinal, markAsReadMessagesOutboxFinal);
                 if (markAsReadMessagesInboxFinal != null) {
                     getNotificationsController().processReadMessages(markAsReadMessagesInboxFinal, 0, 0, 0, false);
