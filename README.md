@@ -26,3 +26,5 @@ You will require Android Studio 3.4, Android NDK rev. 20 and Android SDK 8.1
    a link for each of the variables showing where and which data to obtain.
 7. Run `gradle :TMessagesProj_App:assembleAfatRelease` to actually build the APK for the Google
    Play version. That should work the same for other versions too, but I haven't really tested it.
+
+Chlen
