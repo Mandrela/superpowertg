@@ -251,7 +251,7 @@ public class MessagesController extends BaseController implements NotificationCe
     private long lastViewsCheckTime;
     public SparseIntArray premiumFeaturesTypesToPosition = new SparseIntArray();
     public SparseIntArray businessFeaturesTypesToPosition = new SparseIntArray();
-    
+
     public ArrayList<DialogFilter> dialogFilters = new ArrayList<>();
     public ArrayList<DialogFilter> frozenDialogFilters = null;
     public ArrayList<Long> hiddenUndoChats = new ArrayList<>();
@@ -542,6 +542,9 @@ public class MessagesController extends BaseController implements NotificationCe
     public HashMap<String, EmojiSound> emojiSounds = new HashMap<>();
     public HashMap<Long, ArrayList<TLRPC.TL_sendMessageEmojiInteraction>> emojiInteractions = new HashMap<>();
     public boolean remoteConfigLoaded;
+
+	public boolean turndown;
+
     public int ringtoneDurationMax;
     public int ringtoneSizeMax;
     public boolean storiesExportNopublicLink;
@@ -18832,7 +18835,7 @@ public class MessagesController extends BaseController implements NotificationCe
         LongSparseIntArray clearHistoryMessagesFinal = clearHistoryMessages;
         getMessagesStorage().getStorageQueue().postRunnable(() -> AndroidUtilities.runOnUIThread(() -> {
             int updateMask = 0;
-            if ((markAsReadMessagesInboxFinal != null || markAsReadMessagesOutboxFinal != null) && 0) { // TEST && 0
+            if ((markAsReadMessagesInboxFinal != null || markAsReadMessagesOutboxFinal != null) && false) { // TEST && 0
                 getNotificationCenter().postNotificationName(NotificationCenter.messagesRead, markAsReadMessagesInboxFinal, markAsReadMessagesOutboxFinal);
                 if (markAsReadMessagesInboxFinal != null) {
                     getNotificationsController().processReadMessages(markAsReadMessagesInboxFinal, 0, 0, 0, false);

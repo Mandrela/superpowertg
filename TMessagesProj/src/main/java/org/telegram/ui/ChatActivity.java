@@ -1139,8 +1139,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
     }
 
     public void deleteHistory(int dateSelectedStart, int dateSelectedEnd, boolean forAll) {
-	return;
-        chatAdapter.frozenMessages.clear();
+        /* chatAdapter.frozenMessages.clear();
         for (int i = 0; i < messages.size(); i++) {
             MessageObject messageObject = messages.get(i);
             if (messageObject.messageOwner.date <= dateSelectedStart || messageObject.messageOwner.date >= dateSelectedEnd) {
@@ -1173,6 +1172,7 @@ public class ChatActivity extends BaseFragment implements NotificationCenter.Not
             chatAdapter.notifyDataSetChanged(true);
             showProgressView(false);
         });
+	*/
     }
 
     public void showHeaderItem(boolean show) {

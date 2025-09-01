@@ -136,6 +136,56 @@ public class SuperSettingsActivity extends BaseFragment {
         return fragmentView;
     }
 
+    private boolean[] expanded = new boolean[3];
+    private int getExpandedIndex(int flags) {
+        if (flags == LiteMode.FLAGS_ANIMATED_STICKERS) {
+            return 0;
+        } else if (flags == LiteMode.FLAGS_ANIMATED_EMOJI) {
+            return 1;
+        } else if (flags == FLAGS_CHAT) {
+            return 2;
+        }
+        return -1;
+    }
+
+    public void setExpanded(int flags, boolean expand) {
+        int i = getExpandedIndex(flags);
+        if (i == -1) {
+            return;
+        }
+        expanded[i] = expand;
+        updateValues();
+        updateItems();
+    }
+
+    public void scrollToType(int type) {
+        for (int i = 0; i < items.size(); i++) {
+            Item item = items.get(i);
+            if (item.type == type) {
+                highlightRow(i);
+                break;
+            }
+        }
+    }
+
+    public void scrollToFlags(int flags) {
+        for (int i = 0; i < items.size(); i++) {
+            Item item = items.get(i);
+            if (item.flags == flags) {
+                highlightRow(i);
+                break;
+            }
+        }
+    }
+
+    private void highlightRow(int index) {
+        RecyclerListView.IntReturnCallback callback = () -> {
+            layoutManager.scrollToPositionWithOffset(index, AndroidUtilities.dp(60));
+            return index;
+        };
+        listView.highlightRow(callback);
+    }
+
     private ArrayList<Item> oldItems = new ArrayList<>();
     private ArrayList<Item> items = new ArrayList<>();
 
